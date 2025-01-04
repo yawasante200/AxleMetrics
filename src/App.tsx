@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { MainCalculator } from './components/MainCalculator';
+import { TruckFactor } from './components/TruckFactor'; // Import TruckFactor component
 import { Header } from './components/Header';
 import { ChevronLeft } from 'lucide-react'; // Import the back arrow icon
-import TruckFactor from './components/TruckFactor'; // Import the TruckFactor component
 
 function App() {
   const [selectedOption, setSelectedOption] = useState<'ealf' | 'truckFactor' | 'designEsals' | null>(null);
@@ -45,10 +45,30 @@ function App() {
               onClick={() => setSelectedOption('truckFactor')}
               className="p-6 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all border border-blue-100 group"
             >
-              <h3 className="text-xl font-medium text-gray-800">ESAL Factor Calculator</h3>
-              <p className="text-gray-600">Calculate ESAL Factors</p>
+              <h3 className="text-xl font-medium text-gray-800">Truck Factor Calculation</h3>
+              <p className="text-gray-600">Calculate truck factor from axle load data</p>
             </button>
           </div>
+        </div>
+      ) : selectedOption === 'truckFactor' ? (
+        // Truck Factor Component
+        <div className="max-w-2xl mx-auto pt-20 px-4">
+          <div className="flex items-center">
+            <button
+              onClick={handleBack}
+              className="p-2 text-gray-600 hover:text-gray-800"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+            <h2 className="text-2xl font-semibold text-gray-800 mb-8 text-center flex-1">Truck Factor Calculation</h2>
+          </div>
+          <TruckFactor onBack={function (): void {
+              throw new Error('Function not implemented.');
+            } } onProceed={function (_pavementType: 'flexible' | 'rigid', _action: 'create' | 'import'): void {
+              throw new Error('Function not implemented.');
+            } } downloadExcelTemplate={function (): void {
+              throw new Error('Function not implemented.');
+            } } />
         </div>
       ) : selectedOption === 'ealf' && !pavementType ? (
         // Pavement Type Selection for EALF
@@ -126,9 +146,6 @@ function App() {
           calculationType={calculationType!}
           onReset={handleReset}
         />
-      ) : selectedOption === 'truckFactor' ? (
-        // TruckFactor Component logic now appears here
-        <TruckFactor onBackToApp={handleReset} />
       ) : null}
     </div>
   );

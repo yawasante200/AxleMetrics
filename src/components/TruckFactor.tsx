@@ -1,178 +1,102 @@
 import React, { useState } from 'react';
-import { ChevronLeft } from 'lucide-react';
-import Papa from 'papaparse'; // Import PapaParse for CSV parsing
+import { saveAs } from 'file-saver';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
-function TruckFactor({ onBackToApp }: { onBackToApp: () => void }) {
-  const [selectedOption, setSelectedOption] = useState<'createAxleData' | 'importAxleData' | null>(null);
-  const [pavementType, setPavementType] = useState<'flexible' | 'rigid' | null>(null);
-  const [calculationType, setCalculationType] = useState<'simplified' | 'aasho' | null>(null);
-  const [csvData, setCsvData] = useState<any[]>([]); // State to hold parsed CSV data
+function App() {
+  const [file, setFile] = useState(null);
+  const [results, setResults] = useState<Result[]>([]);
 
-  const handleBack = () => {
-    if (csvData.length > 0) {
-      setCsvData([]); // Clear the uploaded CSV data
-    } else if (calculationType) {
-      setCalculationType(null); // Go back to calculation type selection
-    } else if (pavementType) {
-      setPavementType(null); // Go back to pavement type selection
-    } else if (selectedOption) {
-      setSelectedOption(null); // Go back to the landing page
-    } else {
-      onBackToApp(); // Return to the main App.tsx
-    }
+  // Function to create and download Excel template
+  const handleCreateAxleDataFile = () => {
+    const templateData = 'Axle Load,Repetitions\n';
+    const blob = new Blob([templateData], { type: 'text/csv' });
+    saveAs(blob, 'AxleDataTemplate.csv');
   };
 
+  // Function to handle file upload and processing
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      Papa.parse(file, {
-        complete: (result) => {
-          setCsvData(result.data); // Store the parsed data in state
-        },
-        header: true, // Optional: If the CSV file has headers
-      });
+    const uploadedFile = event.target.files?.[0];
+    if (uploadedFile) {
+      const reader = new FileReader();
+      reader.onload = (e: ProgressEvent<FileReader>) => {
+        const content = e.target?.result as string;
+        processCSVData(content);
+      };
+      reader.readAsText(uploadedFile);
     }
   };
 
-  // Shared button class styles
-  const buttonClass = "p-6 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all border border-blue-100 group";
+  // Function to process CSV data and generate results
+  interface Result {
+    axleLoad: number;
+    repetitions: number;
+  }
+
+  const processCSVData = (data: string) => {
+    const rows = data.split('\n').slice(1); // Skip header row
+    const processedResults: Result[] = rows.map((row) => {
+      const [axleLoad, repetitions] = row.split(',');
+      return {
+        axleLoad: parseFloat(axleLoad),
+        repetitions: parseInt(repetitions, 10),
+      };
+    });
+    setResults(processedResults);
+    generatePDF(processedResults);
+  };
+
+  // Function to generate PDF from results
+  interface PDFData {
+    axleLoad: number;
+    repetitions: number;
+  }
+
+  const generatePDF = (data: PDFData[]) => {
+    const doc = new jsPDF();
+    doc.text('ESAL Factor Calculation Results', 10, 10);
+    autoTable(doc, {
+      head: [['Axle Load', 'Repetitions']],
+      body: data.map((row) => [row.axleLoad, row.repetitions]),
+    });
+    doc.save('Results.pdf');
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
-      {!selectedOption ? (
-        <div className="max-w-2xl mx-auto pt-20 px-4">
-          <div className="flex items-center mb-8">
-            <button
-              onClick={handleBack}
-              className="p-2 text-gray-600 hover:text-gray-800"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-            <h2 className="text-2xl font-semibold text-gray-800 text-center flex-1">Choose an Option</h2>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <button
-              onClick={() => setSelectedOption('createAxleData')}
-              className={buttonClass}
-            >
-              <h3 className="text-xl font-medium text-gray-800">Create Axle Load Data</h3>
-              <p className="text-gray-600">Manually input axle load data</p>
-            </button>
-            <button
-              onClick={() => setSelectedOption('importAxleData')}
-              className={buttonClass}
-            >
-              <h3 className="text-xl font-medium text-gray-800">Import Axle Load Data</h3>
-              <p className="text-gray-600">Import axle data from a CSV file</p>
-            </button>
-          </div>
+    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+      <h1>Truck Factor Calculation</h1>
+      <h2>ESAL Factor Calculator</h2>
+      <div style={{ margin: '20px 0' }}>
+        <button onClick={handleCreateAxleDataFile} style={{ marginRight: '10px', padding: '10px 20px' }}>
+          Create Axle Data File
+        </button>
+        <input
+          type="file"
+          accept=".csv"
+          onChange={handleFileUpload}
+          style={{ display: 'inline-block', padding: '10px' }}
+        />
+        <button
+          onClick={() => file && processCSVData(file)}
+          style={{ marginLeft: '10px', padding: '10px 20px' }}
+        >
+          Process CSV
+        </button>
+      </div>
+      {results && (
+        <div>
+          <h3>Results:</h3>
+          <ul>
+            {results.map((result, index) => (
+              <li key={index}>
+                Axle Load: {result.axleLoad}, Repetitions: {result.repetitions}
+              </li>
+            ))}
+          </ul>
         </div>
-      ) : selectedOption === 'importAxleData' ? (
-        pavementType ? (
-          calculationType ? (
-            <div className="max-w-2xl mx-auto pt-20 px-4">
-              <div className="flex items-center mb-8">
-                <button
-                  onClick={handleBack}
-                  className="p-2 text-gray-600 hover:text-gray-800"
-                >
-                  <ChevronLeft className="w-6 h-6" />
-                </button>
-                <h2 className="text-2xl font-semibold text-gray-800 text-center flex-1">Upload CSV File</h2>
-              </div>
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleFileUpload}
-                className="p-4 bg-blue-500 text-white rounded-lg shadow-lg hover:bg-blue-600 w-full"
-              />
-              {csvData.length > 0 && (
-                <div className="mt-4">
-                  <h3 className="text-lg font-semibold">Uploaded Data:</h3>
-                  <pre>{JSON.stringify(csvData, null, 2)}</pre>
-                  <button className="mt-4 p-4 bg-green-500 text-white rounded-lg shadow-lg hover:bg-green-600">
-                    Calculate
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="max-w-2xl mx-auto pt-20 px-4">
-              <div className="flex items-center mb-8">
-                <button
-                  onClick={handleBack}
-                  className="p-2 text-gray-600 hover:text-gray-800"
-                >
-                  <ChevronLeft className="w-6 h-6" />
-                </button>
-                <h2 className="text-2xl font-semibold text-gray-800 text-center flex-1">Select Calculation Type</h2>
-              </div>
-              <div className="grid gap-4">
-                <button
-                  onClick={() => setCalculationType('simplified')}
-                  className={buttonClass}
-                >
-                  Simplified Method
-                </button>
-                <button
-                  onClick={() => setCalculationType('aasho')}
-                  className={buttonClass}
-                >
-                  AASHTO Method
-                </button>
-              </div>
-            </div>
-          )
-        ) : (
-          <div className="max-w-2xl mx-auto pt-20 px-4">
-            <div className="flex items-center mb-8">
-              <button
-                onClick={handleBack}
-                className="p-2 text-gray-600 hover:text-gray-800"
-              >
-                <ChevronLeft className="w-6 h-6" />
-              </button>
-              <h2 className="text-2xl font-semibold text-gray-800 text-center flex-1">Select Pavement Type</h2>
-            </div>
-            <div className="grid gap-4">
-              <button
-                onClick={() => setPavementType('flexible')}
-                className={buttonClass}
-              >
-                Flexible Pavement
-              </button>
-              <button
-                onClick={() => setPavementType('rigid')}
-                className={buttonClass}
-              >
-                Rigid Pavement
-              </button>
-            </div>
-          </div>
-        )
-      ) : selectedOption === 'createAxleData' ? (
-        <div className="max-w-2xl mx-auto pt-20 px-4">
-          <div className="flex items-center mb-8">
-            <button
-              onClick={handleBack}
-              className="p-2 text-gray-600 hover:text-gray-800"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-            <h2 className="text-2xl font-semibold text-gray-800 text-center flex-1">Create Axle Load Data</h2>
-          </div>
-          
-          <a
-            href="/Axle_Data_Template_Config.xlsx"
-            download
-            className={buttonClass}
-          >
-            Download Template
-          </a>
-        </div>
-      ) : null}
+      )}
     </div>
   );
 }
 
-export default TruckFactor;
+export default App;

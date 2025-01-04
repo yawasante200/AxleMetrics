@@ -11,41 +11,51 @@ export function AashoForm({ onCalculate, pavementType }: AashoFormProps) {
   const [L2, setL2] = useState('');
   const [pt, setPt] = useState('');
   const [SN, setSN] = useState('');
-  const [EALF, setEALF] = useState<number | null>(null); // Store result in state
+  const [D, setD] = useState(''); // Additional field for rigid pavements
+  const [EALF, setEALF] = useState<number | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validate inputs before calculation
+
+    // Validate inputs
     const lx = parseFloat(Lx);
     const l2 = parseFloat(L2);
     const ptVal = parseFloat(pt);
     const snVal = parseFloat(SN);
+    const dVal = pavementType === 'rigid' ? parseFloat(D) : null;
 
-    if (isNaN(lx) || isNaN(l2) || isNaN(ptVal) || isNaN(snVal) || lx <= 0 || l2 <= 0 || ptVal <= 0 || snVal <= 0) {
+    if (
+      isNaN(lx) || isNaN(l2) || isNaN(ptVal) ||
+      isNaN(snVal) || lx <= 0 || l2 <= 0 || ptVal <= 0 || snVal <= 0 ||
+      (pavementType === 'rigid' && (isNaN(dVal!) || dVal! <= 0))
+    ) {
       alert('Please provide valid positive values for all fields.');
       return;
     }
 
-    // Perform AASHO EALF calculation
-    const Gt = Math.log10((4.2 - ptVal) / (4.2 - 1.5));
-    const betaX = 0.40 + (0.081 * Math.pow(lx + l2, 3.23)) / (Math.pow(snVal + 1, 5.19) * Math.pow(l2, 3.23));
-    const beta18 = 0.40 + (0.081 * Math.pow(18 + l2, 3.23)) / (Math.pow(snVal + 1, 5.19) * Math.pow(l2, 3.23));
-    
-    const logRatio = 6.1252 - 4.79 * Math.log10(lx + l2) + 4.33 * Math.log10(l2) + Gt * (betaX - beta18);
-    const WtRatio = Math.pow(10, logRatio);
-    const calculatedEALF = 1 / WtRatio;
+    let calculatedEALF = 0;
 
-    // Set the calculated result in the state
+    if (pavementType === 'flexible') {
+      // Flexible pavement calculations
+      const Gt = Math.log10((4.2 - ptVal) / (4.2 - 1.5));
+      const betaX = 0.40 + (0.081 * Math.pow(lx + l2, 3.23)) / (Math.pow(snVal + 1, 5.19) * Math.pow(l2, 3.23));
+      const beta18 = 0.40 + (0.081 * Math.pow(18 + l2, 3.23)) / (Math.pow(snVal + 1, 5.19) * Math.pow(l2, 3.23));
+      const logRatio = 6.1252 - 4.79 * Math.log10(lx + l2) + 4.33 * Math.log10(l2) + Gt * (betaX - beta18);
+      const WtRatio = Math.pow(10, logRatio);
+      calculatedEALF = 1 / WtRatio;
+    } else if (pavementType === 'rigid') {
+      // Rigid pavement calculations
+      const Gt = Math.log10((4.5 - ptVal) / (4.5 - 1.5));
+      const betaX = 1.0 + (3.63 * Math.pow(lx + l2, 5.20)) / (Math.pow(dVal! + 1, 8.46) * Math.pow(l2, 3.52));
+      const beta18 = 1.0 + (3.63 * Math.pow(18 + l2, 5.20)) / (Math.pow(dVal! + 1, 8.46) * Math.pow(l2, 3.52));
+      const logRatio = 5.908 - 4.62 * Math.log10(lx + l2) + 3.28 * Math.log10(l2) + Gt * (betaX - beta18);
+      const WtRatio = Math.pow(10, logRatio);
+      calculatedEALF = 1 / WtRatio;
+    }
+
+    // Set the calculated result
     setEALF(calculatedEALF);
-
-    // Pass result to parent component (if needed)
     onCalculate(calculatedEALF);
-  };
-
-  // Reset the result state when navigating back
-  const handleGoBack = () => {
-    setEALF(null); // Clear result when going back to previous step or input type selection
   };
 
   return (
@@ -117,6 +127,22 @@ export function AashoForm({ onCalculate, pavementType }: AashoFormProps) {
         />
       </div>
 
+      {pavementType === 'rigid' && (
+        <div>
+          <label htmlFor="D" className="block text-sm font-medium text-gray-700">
+            Slab Thickness (D)
+          </label>
+          <input
+            type="number"
+            id="D"
+            value={D}
+            onChange={(e) => setD(e.target.value)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            required
+          />
+        </div>
+      )}
+
       <button
         type="submit"
         className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
@@ -124,7 +150,11 @@ export function AashoForm({ onCalculate, pavementType }: AashoFormProps) {
         Calculate EALF
       </button>
 
-      
+      {EALF !== null && (
+        <div className="mt-4 p-4 bg-green-100 text-green-800 rounded">
+          <strong>Calculated EALF:</strong> {EALF.toFixed(4)}
+        </div>
+      )}
     </form>
   );
 }
