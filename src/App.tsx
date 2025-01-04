@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MainCalculator } from './components/MainCalculator';
-import { TruckFactor } from './components/TruckFactor'; // Import TruckFactor component
+import TruckFactor from './components/TruckFactor'; // Import TruckFactor component
 import { Header } from './components/Header';
 import { ChevronLeft } from 'lucide-react'; // Import the back arrow icon
 

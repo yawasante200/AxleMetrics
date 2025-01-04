@@ -1,102 +1,133 @@
 import React, { useState } from 'react';
 import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import 'jspdf-autotable';
 
-function App() {
-  const [file, setFile] = useState(null);
-  const [results, setResults] = useState<Result[]>([]);
+interface Result {
+  axleLoad: number;
+  repetitions: number;
+  esalFactor: number;
+}
 
-  // Function to create and download Excel template
-  const handleCreateAxleDataFile = () => {
-    const templateData = 'Axle Load,Repetitions\n';
+interface TruckFactorProps {
+  onBack: () => void;
+  onProceed: (pavementType: 'flexible' | 'rigid', action: 'create' | 'import') => void;
+  downloadExcelTemplate: () => void;
+}
+
+const TruckFactor: React.FC<TruckFactorProps> = () => {
+  const [file, setFile] = useState<File | null>(null);
+  const [results, setResults] = useState<Result[] | null>(null);
+
+  const handleCreateAxleDataFile = (): void => {
+    const templateData = 'Axle Type,Configuration,Axle 1,Axle 2,Axle 3,Axle 4,Axle 5,Axle 6,Axle 7,Axle 8,Axle 9\n';
     const blob = new Blob([templateData], { type: 'text/csv' });
     saveAs(blob, 'AxleDataTemplate.csv');
   };
 
-  // Function to handle file upload and processing
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const uploadedFile = event.target.files?.[0];
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>): void => {
+    const uploadedFile = event.target.files?.[0] || null;
     if (uploadedFile) {
       const reader = new FileReader();
-      reader.onload = (e: ProgressEvent<FileReader>) => {
+      reader.onload = (e) => {
         const content = e.target?.result as string;
         processCSVData(content);
       };
       reader.readAsText(uploadedFile);
+      setFile(uploadedFile);
     }
   };
 
-  // Function to process CSV data and generate results
-  interface Result {
-    axleLoad: number;
-    repetitions: number;
-  }
-
-  const processCSVData = (data: string) => {
+  const processCSVData = (data: string): void => {
     const rows = data.split('\n').slice(1); // Skip header row
-    const processedResults: Result[] = rows.map((row) => {
-      const [axleLoad, repetitions] = row.split(',');
-      return {
-        axleLoad: parseFloat(axleLoad),
-        repetitions: parseInt(repetitions, 10),
-      };
+    const processedResults: Result[] = [];
+
+    rows.forEach((row) => {
+      const columns = row.split(',');
+      const configuration = columns[1];
+      const axleLoads = columns.slice(2).map(load => parseFloat(load)).filter(load => !isNaN(load));
+
+      axleLoads.forEach((load) => {
+        const reps = 1; // Assuming each row represents a single vehicle pass
+        const esalFactor = load * reps * 0.0001; // Example calculation
+        processedResults.push({
+          axleLoad: load,
+          repetitions: reps,
+          esalFactor,
+        });
+      });
     });
+
     setResults(processedResults);
     generatePDF(processedResults);
   };
 
-  // Function to generate PDF from results
-  interface PDFData {
-    axleLoad: number;
-    repetitions: number;
-  }
-
-  const generatePDF = (data: PDFData[]) => {
-    const doc = new jsPDF();
+  const generatePDF = (data: Result[]): void => {
+    const doc = new jsPDF() as jsPDF & { autoTable: (options: any) => void };
+    if (!data || data.length === 0) {
+      alert("No data available to generate PDF.");
+      return;
+    }
+    
     doc.text('ESAL Factor Calculation Results', 10, 10);
-    autoTable(doc, {
-      head: [['Axle Load', 'Repetitions']],
-      body: data.map((row) => [row.axleLoad, row.repetitions]),
-    });
-    doc.save('Results.pdf');
+    
+    try {
+      doc.autoTable({
+        head: [['Axle Load', 'Repetitions', 'ESAL Factor']],
+        body: data.map((row) => [
+          row.axleLoad.toFixed(2), 
+          row.repetitions.toLocaleString(), 
+          row.esalFactor.toFixed(4)
+        ]),
+        startY: 20,
+      });
+      doc.save('Results.pdf');
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("An error occurred while generating the PDF. Please try again.");
+    }
   };
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
-      <h1>Truck Factor Calculation</h1>
-      <h2>ESAL Factor Calculator</h2>
-      <div style={{ margin: '20px 0' }}>
-        <button onClick={handleCreateAxleDataFile} style={{ marginRight: '10px', padding: '10px 20px' }}>
+    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif', maxWidth: '600px', margin: 'auto', backgroundColor: '#f9f9f9', borderRadius: '10px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)' }}>
+      <h1 style={{ textAlign: 'center', color: '#333' }}>Truck Factor Calculation</h1>
+      <h2 style={{ textAlign: 'center', color: '#555' }}>ESAL Factor Calculator</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', margin: '20px 0' }}>
+        <button onClick={handleCreateAxleDataFile} style={{ padding: '10px 20px', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
           Create Axle Data File
         </button>
         <input
           type="file"
           accept=".csv"
           onChange={handleFileUpload}
-          style={{ display: 'inline-block', padding: '10px' }}
+          style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '5px' }}
         />
-        <button
-          onClick={() => file && processCSVData(file)}
-          style={{ marginLeft: '10px', padding: '10px 20px' }}
-        >
-          Process CSV
-        </button>
       </div>
       {results && (
-        <div>
-          <h3>Results:</h3>
-          <ul>
-            {results.map((result, index) => (
-              <li key={index}>
-                Axle Load: {result.axleLoad}, Repetitions: {result.repetitions}
-              </li>
-            ))}
-          </ul>
+        <div style={{ marginTop: '20px' }}>
+          <h3 style={{ textAlign: 'center', color: '#444' }}>Results:</h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+            <thead>
+              <tr style={{ backgroundColor: '#007bff', color: '#fff' }}>
+                <th style={{ padding: '10px', border: '1px solid #ddd' }}>Axle Load</th>
+                <th style={{ padding: '10px', border: '1px solid #ddd' }}>Repetitions</th>
+                <th style={{ padding: '10px', border: '1px solid #ddd' }}>ESAL Factor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {results.map((result, index) => (
+                <tr key={index} style={{ textAlign: 'center' }}>
+                  <td style={{ padding: '10px', border: '1px solid #ddd' }}>{result.axleLoad}</td>
+                  <td style={{ padding: '10px', border: '1px solid #ddd' }}>{result.repetitions}</td>
+                  <td style={{ padding: '10px', border: '1px solid #ddd' }}>{result.esalFactor.toFixed(4)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
   );
-}
+};
 
-export default App;
+export default TruckFactor;
