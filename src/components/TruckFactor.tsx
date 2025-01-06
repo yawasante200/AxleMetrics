@@ -2,11 +2,14 @@ import React, { useState } from 'react';
 import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import logo from './logo.png'; // Ensure you have a logo image in your project
 
 interface Result {
-  axleLoad: number;
-  repetitions: number;
-  esalFactor: number;
+  axleName: string;
+  configuration: string;
+  combinedLoads: number[];
+  ealfFlexible: number;
+  ealfRigid: number;
 }
 
 interface TruckFactorProps {
@@ -44,17 +47,20 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
 
     rows.forEach((row) => {
       const columns = row.split(',');
+      const axleName = columns[0];
       const configuration = columns[1];
       const axleLoads = columns.slice(2).map(load => parseFloat(load)).filter(load => !isNaN(load));
 
-      axleLoads.forEach((load) => {
-        const reps = 1; // Assuming each row represents a single vehicle pass
-        const esalFactor = load * reps * 0.0001; // Example calculation
-        processedResults.push({
-          axleLoad: load,
-          repetitions: reps,
-          esalFactor,
-        });
+      // Example calculations for EALF (replace with actual calculations)
+      const ealfFlexible = axleLoads.reduce((sum, load) => sum + load * 0.0001, 0);
+      const ealfRigid = axleLoads.reduce((sum, load) => sum + load * 0.0002, 0);
+
+      processedResults.push({
+        axleName,
+        configuration,
+        combinedLoads: axleLoads,
+        ealfFlexible,
+        ealfRigid,
       });
     });
 
@@ -68,18 +74,25 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
       alert("No data available to generate PDF.");
       return;
     }
-    
-    doc.text('ESAL Factor Calculation Results', 10, 10);
-    
+
+    // Add logo and date
+    const date = new Date().toLocaleDateString();
+    doc.addImage(logo, 'PNG', 10, 10, 50, 20);
+    doc.text(`Date: ${date}`, 160, 20);
+
+    doc.text('ESAL Factor Calculation Results', 10, 40);
+
     try {
       doc.autoTable({
-        head: [['Axle Load', 'Repetitions', 'ESAL Factor']],
+        head: [['Axle Name', 'Configuration', 'Combined Loads (Kips)', 'EALF Flexible', 'EALF Rigid']],
         body: data.map((row) => [
-          row.axleLoad.toFixed(2), 
-          row.repetitions.toLocaleString(), 
-          row.esalFactor.toFixed(4)
+          row.axleName,
+          row.configuration,
+          row.combinedLoads.join(', '),
+          row.ealfFlexible.toFixed(4),
+          row.ealfRigid.toFixed(4),
         ]),
-        startY: 20,
+        startY: 50,
       });
       doc.save('Results.pdf');
     } catch (error) {
@@ -109,17 +122,21 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
           <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
             <thead>
               <tr style={{ backgroundColor: '#007bff', color: '#fff' }}>
-                <th style={{ padding: '10px', border: '1px solid #ddd' }}>Axle Load</th>
-                <th style={{ padding: '10px', border: '1px solid #ddd' }}>Repetitions</th>
-                <th style={{ padding: '10px', border: '1px solid #ddd' }}>ESAL Factor</th>
+                <th style={{ padding: '10px', border: '1px solid #ddd' }}>Axle Name</th>
+                <th style={{ padding: '10px', border: '1px solid #ddd' }}>Configuration</th>
+                <th style={{ padding: '10px', border: '1px solid #ddd' }}>Combined Loads (Kips)</th>
+                <th style={{ padding: '10px', border: '1px solid #ddd' }}>EALF Flexible</th>
+                <th style={{ padding: '10px', border: '1px solid #ddd' }}>EALF Rigid</th>
               </tr>
             </thead>
             <tbody>
               {results.map((result, index) => (
                 <tr key={index} style={{ textAlign: 'center' }}>
-                  <td style={{ padding: '10px', border: '1px solid #ddd' }}>{result.axleLoad}</td>
-                  <td style={{ padding: '10px', border: '1px solid #ddd' }}>{result.repetitions}</td>
-                  <td style={{ padding: '10px', border: '1px solid #ddd' }}>{result.esalFactor.toFixed(4)}</td>
+                  <td style={{ padding: '10px', border: '1px solid #ddd' }}>{result.axleName}</td>
+                  <td style={{ padding: '10px', border: '1px solid #ddd' }}>{result.configuration}</td>
+                  <td style={{ padding: '10px', border: '1px solid #ddd' }}>{result.combinedLoads.join(', ')}</td>
+                  <td style={{ padding: '10px', border: '1px solid #ddd' }}>{result.ealfFlexible.toFixed(4)}</td>
+                  <td style={{ padding: '10px', border: '1px solid #ddd' }}>{result.ealfRigid.toFixed(4)}</td>
                 </tr>
               ))}
             </tbody>

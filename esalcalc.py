@@ -140,7 +140,7 @@ def process_csv(file_path):
     return results_df
 
 # File path to your CSV
-file_path = "C:/Users/DELL/Desktop/Axle_Data_Template.csv"
+file_path = "C:\Users\FUJITSU\Music\project\project\Axle Data Template.xlsx"
 
 # Process CSV and display/save results
 results_df = process_csv(file_path)
