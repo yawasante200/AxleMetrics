@@ -45,8 +45,8 @@ function App() {
               onClick={() => setSelectedOption('truckFactor')}
               className="p-6 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all border border-blue-100 group"
             >
-              <h3 className="text-xl font-medium text-gray-800">Truck Factor Calculation</h3>
-              <p className="text-gray-600">Calculate truck factor from axle load data</p>
+              <h3 className="text-xl font-medium text-gray-800">ESAL Factor Calculation</h3>
+              <p className="text-gray-600">Calculate ESAL factor from axle load data</p>
             </button>
           </div>
         </div>
@@ -60,7 +60,7 @@ function App() {
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
-            <h2 className="text-2xl font-semibold text-gray-800 mb-8 text-center flex-1">Truck Factor Calculation</h2>
+            <h2 className="text-2xl font-semibold text-gray-800 mb-8 text-center flex-1">ESAL Factor Calculation</h2>
           </div>
           <TruckFactor onBack={function (): void {
               throw new Error('Function not implemented.');
