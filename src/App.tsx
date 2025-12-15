@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { MainCalculator } from './components/MainCalculator';
-import TruckFactor from './components/TruckFactor'; // Import TruckFactor component
+import TruckFactor from './components/TruckFactor';
+import DesignEsal from './components/DesignEsal';
 import { Header } from './components/Header';
-import { ChevronLeft } from 'lucide-react'; // Import the back arrow icon
+import { ChevronLeft } from 'lucide-react';
 
-function App() {
+function AppContent() {
   const [selectedOption, setSelectedOption] = useState<'ealf' | 'truckFactor' | 'designEsals' | null>(null);
   const [pavementType, setPavementType] = useState<'flexible' | 'rigid' | null>(null);
   const [calculationType, setCalculationType] = useState<'simplified' | 'aasho' | null>(null);
+  const navigate = useNavigate();
 
   const handleReset = () => {
     setSelectedOption(null);
@@ -28,12 +31,15 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
       <Header />
-
-      {!selectedOption ? (
+      <Routes>
+        <Route 
+          path="/" 
+          element={
+            !selectedOption ? (
         // Landing Page
         <div className="max-w-2xl mx-auto pt-20 px-4">
           <h2 className="text-2xl font-semibold text-gray-800 mb-8 text-center">Choose an Option</h2>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
             <button
               onClick={() => setSelectedOption('ealf')}
               className="p-6 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all border border-blue-100 group"
@@ -47,6 +53,13 @@ function App() {
             >
               <h3 className="text-xl font-medium text-gray-800">ESAL Factor Calculation</h3>
               <p className="text-gray-600">Calculate ESAL factor from axle load data</p>
+            </button>
+            <button
+              onClick={() => setSelectedOption('designEsals')}
+              className="p-6 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all border border-blue-100 group"
+            >
+              <h3 className="text-xl font-medium text-gray-800">Design ESAL Calculation</h3>
+              <p className="text-gray-600">Calculate design ESALs for pavement design</p>
             </button>
           </div>
         </div>
@@ -69,6 +82,20 @@ function App() {
             } } downloadExcelTemplate={function (): void {
               throw new Error('Function not implemented.');
             } } />
+        </div>
+      ) : selectedOption === 'designEsals' ? (
+        // Design ESAL Component
+        <div className="max-w-2xl mx-auto pt-20 px-4">
+          <div className="flex items-center">
+            <button
+              onClick={handleBack}
+              className="p-2 text-gray-600 hover:text-gray-800"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+            <h2 className="text-2xl font-semibold text-gray-800 mb-8 text-center flex-1">Design ESAL Calculation</h2>
+          </div>
+          <DesignEsal />
         </div>
       ) : selectedOption === 'ealf' && !pavementType ? (
         // Pavement Type Selection for EALF
@@ -147,7 +174,29 @@ function App() {
           onReset={handleReset}
         />
       ) : null}
-    </div>
+      />
+      <Route path="/truck-factor" element={<TruckFactor />} />
+      <Route path="/design-esal" element={<DesignEsal />} />
+      <Route 
+        path="/ealf" 
+        element={
+          <MainCalculator
+            pavementType={pavementType!}
+            calculationType={calculationType!}
+            onReset={handleReset}
+          />
+        }
+      />
+    </Routes>
+  </div>
+  );
+
+}
+function App() {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
   );
 }
 

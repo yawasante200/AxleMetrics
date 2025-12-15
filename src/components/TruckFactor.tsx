@@ -1,9 +1,18 @@
 import React, { useState, useRef } from 'react';
 import Papa from 'papaparse';
 import { TruckFactorProps, Result, CompanyDetails } from '../types/truckFactor';
-import { CONSTANTS, calculateAASHTOEALF, calculateSimplifiedEALF, processConfiguration, interpretAxleType } from '../utils/esalCalculations';
+import { CONSTANTS, calculateAASHTOEALF, calculateSimplifiedEALF, processConfiguration, interpretAxleType, getDefaultConfig } from '../utils/esalCalculations';
 import { generatePDF } from '../utils/pdfGenerator';
+import { getVehicleClassification } from '../utils/classificationUtils';
 import ResultsTable from './ResultsTable';
+import FormModal from './FormModal';
+import PavementTypeSelector from './PavementTypeSelector';
+import ESALTypeSelector from './ESALTypeSelector';
+import FileUploadSection, { FileUploadSectionRef } from './FileUploadSection';
+import ConfigurationModal from './ConfigurationModal';
+import { ESALConfig } from '../types/config';
+import { ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 type CSVRow = {
   'Truck Type': string;
@@ -21,70 +30,37 @@ type CSVRow = {
   [key: string]: string;
 };
 
-type FormModalProps = {
-  onSubmit: (data: { company: string; address: string; phone: string; date: string; project: string; name: string }) => void;
-  onClose: () => void;
-};
-
-const FormModal: React.FC<FormModalProps> = ({ onSubmit, onClose }) => {
-  const [formData, setFormData] = useState({
-    company: '',
-    address: '',
-    phone: '',
-    date: new Date().toISOString().split('T')[0],
-    project: '',
-    name: ''
-  });
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };  
-
-  return (
-    <div className="modal-overlay">
-      <div className='flex flex-col items-center p-6 bg-white border border-gray-200 rounded-lg shadow hover:bg-gray-50 transition-colors cursor-pointer'>
-      <div className="modal">
-        <h2 className="text-xl font-bold ">Fill Details</h2>
-        <form onSubmit={handleSubmit} className="space-y-4 space-x-5 flex-2 border-gray-300">
-          <input type="text" name="company" className='ml-4' placeholder="Company" value={formData.company} onChange={handleChange} required />
-          <input type="text" name="address" placeholder="Address" value={formData.address} onChange={handleChange} required />
-          <input type="text" name="phone" placeholder="Phone" value={formData.phone} onChange={handleChange} required />
-          <input type="date" name="date" placeholder="Date" value={formData.date} onChange={handleChange} required />
-          <input type="text" name="project" placeholder="Project" value={formData.project} onChange={handleChange} required />
-          <input type="text" name="name" placeholder="Name" value={formData.name} onChange={handleChange} required />
-          <button type="submit" className="btn-submit px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500w-full px-4 py-2 border  border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">Submit</button>
-        </form>
-        <button onClick={onClose} className="btn-close w-full mt-8 px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 bg-red-300 text-red-700  font-bold focus:border-blue-500">Cancel</button>
-      </div>
-      </div>
-    </div>
-  );
-};
-
 const TruckFactor: React.FC<TruckFactorProps> = () => {
+  const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [results, setResults] = useState<Result[] | null>(null);
   const [pavementType, setPavementType] = useState<'flexible' | 'rigid' | null>(null);
   const [esalType, setEsalType] = useState<'simplified' | 'AASHTO' | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showFormModal, setShowFormModal] = useState(false);
-  const [formData, setFormData] = useState<{ company: string; address: string; phone: string; date: string; project: string; name: string } | null>(null);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [config, setConfig] = useState<ESALConfig>(getDefaultConfig());
+  const [formData, setFormData] = useState<CompanyDetails | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileUploadSectionRef = useRef<FileUploadSectionRef>(null);
 
   const handleCreateAxleDataFile = (): void => {
-    const fileUrl = '/Axle_Data_Template.xlsx';
+    const fileUrl = '/Axle Data Template.xlsx';
     const link = document.createElement('a');
     link.href = fileUrl;
-    link.download = 'Axle_Data_Template.xlsx';
+    link.download = 'Axle Data Template.xlsx';
     link.click();
   };
-
+  const handleProceedToDesignEsal = () => {
+    if (!results || results.length === 0) return;
+    
+    const truckFactorData = results.map(result => ({
+      'Vehicle Class': result.axleType,
+      'Percent of AADT': '',
+      'Truck Factor': result.averageESAL
+    }));
+    navigate('/design-esal', { state: { truckFactorData } });
+  };
   const handleUploadClick = () => {
     if (!pavementType || !esalType) {
       alert('Please select Pavement Type and Calculation Type (ESAL Type) before uploading a file.');
@@ -93,13 +69,14 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
     setShowFormModal(true);
   };
 
-  const handleFormSubmit = (data: { company: string; address: string; phone: string; date: string; project: string; name: string }) => {
+  const handleFormSubmit = (data: CompanyDetails) => {
     setFormData(data);
     setShowFormModal(false);
-    // Trigger file input click after form submission
+    
+    // Trigger file input click immediately after form submission
     setTimeout(() => {
-      if (fileInputRef.current) {
-        fileInputRef.current.click();
+      if (fileUploadSectionRef.current) {
+        fileUploadSectionRef.current.triggerFileInput();
       }
     }, 100);
   };
@@ -120,6 +97,12 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
     }
   };
 
+  const handleConfigSubmit = (newConfig: ESALConfig) => {
+    setConfig(newConfig);
+    setShowConfigModal(false);
+  };
+
+  
   const processCSVData = (data: string): void => {
     try {
       Papa.parse<CSVRow>(data, {
@@ -137,7 +120,6 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
             return;
           }
 
-          // Filter out rows where all axle loads are zero or empty
           const validRows = rows.filter(row => {
             const axleLoads = Array.from({ length: 9 }, (_, idx) =>
               parseFloat(row[`Axle ${idx + 1}`]) || 0
@@ -148,76 +130,56 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
           const processedResults: Result[] = [];
           const axleTypeGroups: { [key: string]: { esals: number[]; configs: string[] } } = {};
 
-          // Classification Code Mapping
-          const CLASSIFICATION_MAP: { [key: string]: string } = {
-            "SB": "Small Buses",
-            "MB": "Medium Buses",
-            "LB2": "Large Buses (2-axle)",
-            "LB3": "Large Buses (3-axle)",
-            "LT": "Light Trucks",
-            "MT1": "Medium Trucks",
-            "MT2": "Medium Trucks",
-            "HT5": "Heavy Trucks",
-            "HT4": "Heavy Trucks",
-            "3T1": "3-axle trailers",
-            "3T2": "3-axle trailers",
-            "4T1": "4-axle trailers",
-            "4T2": "4-axle trailers",
-            "5T1": "5-axle trailers",
-            "5T2": "5-axle trailers",
-            "5T3": "5-axle trailers",
-            "6T1": "6-axle trailers",
-            "6T2": "6-axle trailers",
-            "7T1": "7-axle trailers",
-            "7T2": "7-axle trailers",
-            "7T3": "7-axle trailers",
-            "8T1": "8-axle trailers",
-            "8T2": "8-axle trailers",
-            "9T1": "9-axle trailers",
-            "9T2": "9-axle trailers",
-            "10T": "10-axle trailers",
-          };
-  
           validRows.forEach((row) => {
             const typedRow = row as CSVRow;
             const configStr = typedRow['Configuration'];
-            const config = configStr
+            const axleConfiguration = configStr
               .split(',')
               .map((num) => parseInt(num.trim()))
               .filter((num) => !isNaN(num) && num > 0);
 
-            const code = typedRow['Truck Type'].trim().toUpperCase();
-            const axleType = CLASSIFICATION_MAP[code] || code;
+            const code = typedRow['Truck Type'].trim();
+            // Use the new utility function to get a more dynamic classification
+            const axleType = getVehicleClassification(code);
 
-            const axleLoads = Array.from({ length: 9 }, (_, idx) =>
-              parseFloat(typedRow[`Axle ${idx + 1}`]) || 0
-            );
+            const axleLoads = Array.from({ length: 9 }, (_, idx) => {
+              const loadInKg = parseFloat(typedRow[`Axle ${idx + 1}`]) || 0;
+              if (esalType === 'simplified') {
+                if (config.unit === 'kN') {
+                  return loadInKg * CONSTANTS.KG_TO_KN; // Convert kg to kN
+                } else if (config.unit === 'kips') {
+                  return loadInKg * CONSTANTS.KG_TO_KIP; // Convert kg to kips
+                }
+                return loadInKg; // Keep as kg
+              } else {
+                return loadInKg; // Keep as kg, conversion will happen in calculateAASHTOEALF
+              }
+            });
 
-            const combinedLoads = processConfiguration(config, axleLoads, esalType || 'AASHTO');
-            const axleTypes = interpretAxleType(config);
+            const combinedLoads = processConfiguration(axleConfiguration, axleLoads, esalType || 'AASHTO');
+            const axleTypes = interpretAxleType(axleConfiguration);
             let esal = 0;
 
-            if (pavementType === 'flexible' && esalType === 'simplified') {
+            if (esalType === 'simplified') {
               combinedLoads.forEach((load, idx) => {
-                esal += calculateSimplifiedEALF(load, axleTypes[idx]);
+                esal += calculateSimplifiedEALF(load, axleTypes[idx], config);
               });
             } else {
-              combinedLoads.forEach((load) => {
-                const loadInKips = load * CONSTANTS.KG_TO_KIP;
-                esal += calculateAASHTOEALF(loadInKips, 'Single', pavementType || 'flexible');
+              combinedLoads.forEach((load, idx) => {
+                esal += calculateAASHTOEALF(load, axleTypes[idx], pavementType || 'flexible', config);
               });
             }
 
-            const baseAxleType = axleType.replace(/(1|2|3|4)$/, '');
-
-            if (!axleTypeGroups[baseAxleType]) {
-              axleTypeGroups[baseAxleType] = { esals: [], configs: [] };
+            // Extract base axle type for grouping, removing version numbers (e.g., T1, T2)
+            // Now handled by the getVehicleClassification function
+            
+            if (!axleTypeGroups[axleType]) {
+              axleTypeGroups[axleType] = { esals: [], configs: [] };
             }
-            axleTypeGroups[baseAxleType].esals.push(esal);
-            axleTypeGroups[baseAxleType].configs.push(configStr);
+            axleTypeGroups[axleType].esals.push(esal);
+            axleTypeGroups[axleType].configs.push(configStr);
           });
 
-          // Filter out groups with zero ESAL values
           Object.entries(axleTypeGroups).forEach(([axleType, data]) => {
             const avgESAL = data.esals.reduce((a, b) => a + b, 0) / data.esals.length;
             if (avgESAL > 0) {
@@ -232,7 +194,7 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
           setResults(processedResults);
 
           if (formData) {
-            generatePDF(processedResults, formData);
+            generatePDF(processedResults, formData, esalType || 'AASHTO', pavementType || 'flexible', config);
           }
         },
       });
@@ -241,8 +203,25 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
       alert('Error processing CSV file.');
     }
   };
-  
-  
+
+  const handlePavementTypeChange = (type: 'flexible' | 'rigid') => {
+    setPavementType(type);
+    setResults(null);
+    if (type === 'rigid') {
+      setEsalType('AASHTO');
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleEsalTypeChange = (type: 'simplified' | 'AASHTO') => {
+    setEsalType(type);
+    setResults(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-8">
@@ -250,77 +229,49 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
         <h1 className="text-2xl font-bold text-gray-900 mb-6">ESAL Factor Calculator</h1>
 
         <div className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Pavement Type</label>
-            <select
-              value={pavementType || ''}
-              onChange={(e) => {
-                const newPavementType = e.target.value as 'flexible' | 'rigid';
-                setPavementType(newPavementType);
-                // Reset ESAL type when changing pavement type
-                if (newPavementType === 'rigid') {
-                  setEsalType('AASHTO');
-                } else {
-                  setEsalType(null);
-                }
-              }}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Select Pavement Type</option>
-              <option value="flexible">Flexible Pavement</option>
-              <option value="rigid">Rigid Pavement</option>
-            </select>
-          </div>
+          <PavementTypeSelector
+            pavementType={pavementType}
+            onChange={handlePavementTypeChange}
+          />
 
           {pavementType && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">ESAL Type</label>
-              <select
-                value={esalType || ''}
-                onChange={(e) => setEsalType(e.target.value as 'simplified' | 'AASHTO')}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select ESAL Type</option>
-                {pavementType === 'flexible' && (
-                  <option value="simplified">Simplified ESAL</option>
-                )}
-                <option value="AASHTO">AASHTO ESAL</option>
-              </select>
-            </div>
-          )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <button
-              onClick={handleCreateAxleDataFile}
-              className="flex flex-col items-center p-6 bg-white border border-gray-200 rounded-lg shadow hover:bg-gray-50 transition-colors"
-            >
-              <span className="text-lg font-medium text-gray-900">Download Template</span>
-              <span className="text-sm text-gray-500">Get the Excel template</span>
-            </button>
-
-            <button
-              onClick={handleUploadClick}
-              className="flex flex-col items-center p-6 bg-white border border-gray-200 rounded-lg shadow hover:bg-gray-50 transition-colors cursor-pointer"
-            >
-              <span className="text-lg font-medium text-gray-900">Upload Data</span>
-              <span className="text-sm text-gray-500">Select CSV file</span>
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              onChange={handleFileUpload}
-              accept=".csv"
-              className="hidden"
+            <ESALTypeSelector
+              esalType={esalType}
+              pavementType={pavementType}
+              onChange={handleEsalTypeChange}
             />
-          </div>
+          )}
+
+          <button
+            onClick={() => setShowConfigModal(true)}
+            className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Select ESAL Parameters
+          </button>
+
+          <FileUploadSection
+            ref={fileUploadSectionRef}
+            onCreateTemplate={handleCreateAxleDataFile}
+            onUploadClick={handleUploadClick}
+            onFileUpload={handleFileUpload}
+          />
         </div>
       </div>
 
       {isProcessing && <div className="text-center text-blue-500">Processing...</div>}
 
       {results && results.length > 0 && (
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Results</h2>
+        <div className="space-y-4">
           <ResultsTable results={results} />
+          <div className="flex justify-end mt-4">
+            <button
+              onClick={handleProceedToDesignEsal}
+              className="inline-flex items-center justify-center gap-2"
+            >
+              Proceed to Design ESAL
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -328,6 +279,16 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
         <FormModal
           onSubmit={handleFormSubmit}
           onClose={() => setShowFormModal(false)}
+        />
+      )}
+
+      {showConfigModal && (
+        <ConfigurationModal
+          onSubmit={handleConfigSubmit}
+          onClose={() => setShowConfigModal(false)}
+          defaultConfig={config}
+          esalType={esalType || 'AASHTO'}
+          pavementType={pavementType || 'flexible'}
         />
       )}
     </div>
