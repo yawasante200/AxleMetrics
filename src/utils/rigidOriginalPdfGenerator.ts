@@ -34,30 +34,30 @@ export const generateRigidOriginalPDF = async (
   const firstPage = pages[0];
 
   // Company details
-  firstPage.drawText(formData.company || '', { x: 102.54, y: 194.51, size: 10, color: rgb(0, 0, 0) });
-  firstPage.drawText(formData.address || '', { x: 98.70, y: 178.91, size: 10, color: rgb(0, 0, 0) });
-  firstPage.drawText(formData.phone || '', { x: 82.62, y: 163.31, size: 10, color: rgb(0, 0, 0) });
-  firstPage.drawText(formData.date || '', { x: 60.97, y: 11.29, size: 10, color: rgb(0, 0, 0) });
-  firstPage.drawText(formData.project || '', { x: 224.82, y: 11.29, size: 10, color: rgb(0, 0, 0) });
-  firstPage.drawText(formData.name || '', { x: 429.80, y: 11.29, size: 10, color: rgb(0, 0, 0) });
+  firstPage.drawText(formData.company || '', { x: 102.54, y: 695.51, size: 10, color: rgb(0, 0, 0) });
+  firstPage.drawText(formData.address || '', { x: 98.70, y: 680.91, size: 10, color: rgb(0, 0, 0) });
+  firstPage.drawText(formData.phone || '', { x: 82.62, y: 665.31, size: 10, color: rgb(0, 0, 0) });
+  firstPage.drawText(formData.date || '', { x: 60.97, y: 501.29, size: 10, color: rgb(0, 0, 0) });
+  firstPage.drawText(formData.project || '', { x: 224.82, y: 501.29, size: 10, color: rgb(0, 0, 0) });
+  firstPage.drawText(formData.name || '', { x: 429.80, y: 501.29, size: 10, color: rgb(0, 0, 0) });
 
   // Configuration values
-  firstPage.drawText(`Terminal Serviceability (Pt): ${config.ptVal}`, {
-    x: 126.6,
-    y: 450,
+  firstPage.drawText(`${config.ptVal}`, {
+    x: 226.6,
+    y: 405,
     size: 10,
     color: rgb(0, 0, 0),
   });
-  firstPage.drawText(`Slab Thickness (D): ${config.dVal}`, {
-    x: 126.6,
-    y: 435,
+  firstPage.drawText(`${config.dVal}`, {
+    x: 406.6,
+    y: 405,
     size: 10,
     color: rgb(0, 0, 0),
   });
 
   // Table
   const xStart = 126.6;
-  const yStart = 418.56;
+  const yStart = 368.56;
   const rowHeight = 20;
   const colWidths = [180, 150];
   const headers = ['Axle Type', 'Average ESAL'];

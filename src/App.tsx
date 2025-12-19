@@ -1,13 +1,43 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { MainCalculator } from './components/MainCalculator';
-import TruckFactor from './components/TruckFactor'; // Import TruckFactor component
+import TruckFactor from './components/TruckFactor';
+import DesignEsal from './components/DesignEsal';
 import { Header } from './components/Header';
-import { ChevronLeft } from 'lucide-react'; // Import the back arrow icon
+import { Dashboard } from './components/Dashboard';
+import { ChevronLeft } from 'lucide-react';
 
-function App() {
+// Auth Pages
+import LoginPage from './components/auth/LoginPage';
+import SignupFlowPage from './components/auth/SignupFlowPage';
+import ForgotPasswordPage from './components/auth/ForgotPasswordPage';
+import OTPPage from './components/auth/OTPPage';
+
+// Auth Context
+import { AuthProvider, useAuth } from './context/AuthContext';
+
+// Routes where the header should be hidden
+const authRoutes = ['/login', '/signup', '/forgot-password', '/verify-otp'];
+
+// Protected Route wrapper
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuth();
+  const location = useLocation();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function AppContent() {
   const [selectedOption, setSelectedOption] = useState<'ealf' | 'truckFactor' | 'designEsals' | null>(null);
   const [pavementType, setPavementType] = useState<'flexible' | 'rigid' | null>(null);
   const [calculationType, setCalculationType] = useState<'simplified' | 'aasho' | null>(null);
+  const location = useLocation();
+
+  const isAuthRoute = authRoutes.some(route => location.pathname.startsWith(route));
 
   const handleReset = () => {
     setSelectedOption(null);
@@ -17,137 +47,157 @@ function App() {
 
   const handleBack = () => {
     if (calculationType) {
-      setCalculationType(null); // Go back to calculation type selection
+      setCalculationType(null);
     } else if (pavementType) {
-      setPavementType(null); // Go back to pavement type selection
+      setPavementType(null);
     } else {
-      setSelectedOption(null); // Go back to the landing page
+      setSelectedOption(null);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
-      <Header />
+  const handleSelectFeature = (feature: 'ealf' | 'truckFactor' | 'designEsals') => {
+    setSelectedOption(feature);
+  };
 
-      {!selectedOption ? (
-        // Landing Page
-        <div className="max-w-2xl mx-auto pt-20 px-4">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-8 text-center">Choose an Option</h2>
-          <div className="grid gap-4 md:grid-cols-2">
-            <button
-              onClick={() => setSelectedOption('ealf')}
-              className="p-6 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all border border-blue-100 group"
-            >
-              <h3 className="text-xl font-medium text-gray-800">EALF Calculator</h3>
-              <p className="text-gray-600">Calculate Equivalent Axle Load Factor</p>
-            </button>
-            <button
-              onClick={() => setSelectedOption('truckFactor')}
-              className="p-6 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all border border-blue-100 group"
-            >
-              <h3 className="text-xl font-medium text-gray-800">ESAL Factor Calculation</h3>
-              <p className="text-gray-600">Calculate ESAL factor from axle load data</p>
-            </button>
-          </div>
-        </div>
-      ) : selectedOption === 'truckFactor' ? (
-        // Truck Factor Component
-        <div className="max-w-2xl mx-auto pt-20 px-4">
-          <div className="flex items-center">
-            <button
-              onClick={handleBack}
-              className="p-2 text-gray-600 hover:text-gray-800"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-            <h2 className="text-2xl font-semibold text-gray-800 mb-8 text-center flex-1">ESAL Factor Calculation</h2>
-          </div>
-          <TruckFactor onBack={function (): void {
-              throw new Error('Function not implemented.');
-            } } onProceed={function (_pavementType: 'flexible' | 'rigid', _action: 'create' | 'import'): void {
-              throw new Error('Function not implemented.');
-            } } downloadExcelTemplate={function (): void {
-              throw new Error('Function not implemented.');
-            } } />
-        </div>
-      ) : selectedOption === 'ealf' && !pavementType ? (
-        // Pavement Type Selection for EALF
-        <div className="max-w-2xl mx-auto pt-20 px-4">
-          <div className="flex items-center">
-            <button
-              onClick={handleBack}
-              className="p-2 text-gray-600 hover:text-gray-800"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-            <h2 className="text-2xl font-semibold text-gray-800 mb-8 text-center flex-1">Choose Pavement Type</h2>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <button
-              onClick={() => setPavementType('flexible')}
-              className="p-6 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all border border-blue-100 group"
-            >
-              <h3 className="text-xl font-medium text-gray-800">Flexible Pavement</h3>
-            </button>
-            <button
-              onClick={() => setPavementType('rigid')}
-              className="p-6 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all border border-blue-100 group"
-            >
-              <h3 className="text-xl font-medium text-gray-800">Rigid Pavement</h3>
-            </button>
-          </div>
-        </div>
-      ) : selectedOption === 'ealf' && !calculationType ? (
-        // Calculation Type Selection for EALF
-        <div className="max-w-2xl mx-auto pt-20 px-4">
-          <div className="flex items-center">
-            <button
-              onClick={handleBack}
-              className="p-2 text-gray-600 hover:text-gray-800"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-            <h2 className="text-2xl font-semibold text-gray-800 mb-8 text-center flex-1">Choose Calculation Method</h2>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {pavementType === 'rigid' ? (
-              // Only AASHO option for Rigid Pavement
-              <button
-                onClick={() => setCalculationType('aasho')}
-                className="p-6 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all border border-blue-100 group"
-              >
-                <h3 className="text-xl font-medium text-gray-800">AASHO EALF</h3>
-                <p className="text-gray-600">Detailed calculations using AASHO method</p>
-              </button>
-            ) : (
-              // Both Simplified and AASHO options for Flexible Pavement
-              <>
-                <button
-                  onClick={() => setCalculationType('simplified')}
-                  className="p-6 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all border border-blue-100 group"
-                >
-                  <h3 className="text-xl font-medium text-gray-800">Simplified EALF</h3>
-                  <p className="text-gray-600">Quick calculations using simplified method</p>
-                </button>
-                <button
-                  onClick={() => setCalculationType('aasho')}
-                  className="p-6 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all border border-blue-100 group"
-                >
-                  <h3 className="text-xl font-medium text-gray-800">AASHO EALF</h3>
-                  <p className="text-gray-600">Detailed calculations using AASHO method</p>
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      ) : selectedOption === 'ealf' ? (
-        <MainCalculator
-          pavementType={pavementType!}
-          calculationType={calculationType!}
-          onReset={handleReset}
+  return (
+    <div className={`min-h-screen ${isAuthRoute ? 'bg-white' : 'bg-gray-50/50'}`}>
+      {/* Only show header on non-auth routes */}
+      {!isAuthRoute && <Header />}
+
+      <Routes>
+        {/* Auth Routes - No Header, No Protection */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupFlowPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/verify-otp" element={<OTPPage />} />
+
+        {/* Protected Main App Routes */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              {!selectedOption ? (
+                <Dashboard onSelectFeature={handleSelectFeature} />
+              ) : selectedOption === 'truckFactor' ? (
+                <div className="max-w-4xl mx-auto py-8 px-4">
+                  <button onClick={handleBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors">
+                    <ChevronLeft className="w-5 h-5" />
+                    <span className="font-medium">Back to Dashboard</span>
+                  </button>
+                  <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-6">ESAL Factor Calculation</h2>
+                    <TruckFactor onBack={handleBack} onProceed={() => { }} downloadExcelTemplate={() => { }} />
+                  </div>
+                </div>
+              ) : selectedOption === 'designEsals' ? (
+                <div className="max-w-4xl mx-auto py-8 px-4">
+                  <button onClick={handleBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors">
+                    <ChevronLeft className="w-5 h-5" />
+                    <span className="font-medium">Back to Dashboard</span>
+                  </button>
+                  <div className="bg-white rounded-2xl border border-gray-100 p-6">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Design ESAL Calculation</h2>
+                    <DesignEsal />
+                  </div>
+                </div>
+              ) : selectedOption === 'ealf' && !pavementType ? (
+                <div className="max-w-2xl mx-auto py-12 px-4">
+                  <button onClick={handleBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-8 transition-colors">
+                    <ChevronLeft className="w-5 h-5" />
+                    <span className="font-medium">Back to Dashboard</span>
+                  </button>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Choose Pavement Type</h2>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <button
+                      onClick={() => setPavementType('flexible')}
+                      className="p-6 bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all text-left group"
+                    >
+                      <h3 className="text-lg font-medium text-gray-900">Flexible Pavement</h3>
+                      <p className="text-sm text-gray-500 mt-1">Asphalt-based pavement design</p>
+                    </button>
+                    <button
+                      onClick={() => setPavementType('rigid')}
+                      className="p-6 bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all text-left group"
+                    >
+                      <h3 className="text-lg font-medium text-gray-900">Rigid Pavement</h3>
+                      <p className="text-sm text-gray-500 mt-1">Concrete-based pavement design</p>
+                    </button>
+                  </div>
+                </div>
+              ) : selectedOption === 'ealf' && !calculationType ? (
+                <div className="max-w-2xl mx-auto py-12 px-4">
+                  <button onClick={handleBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-8 transition-colors">
+                    <ChevronLeft className="w-5 h-5" />
+                    <span className="font-medium">Back</span>
+                  </button>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Choose Calculation Method</h2>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {pavementType === 'rigid' ? (
+                      <button
+                        onClick={() => setCalculationType('aasho')}
+                        className="p-6 bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all text-left"
+                      >
+                        <h3 className="text-lg font-medium text-gray-900">AASHO EALF</h3>
+                        <p className="text-sm text-gray-500 mt-1">Detailed calculations using AASHO method</p>
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => setCalculationType('simplified')}
+                          className="p-6 bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all text-left"
+                        >
+                          <h3 className="text-lg font-medium text-gray-900">Simplified EALF</h3>
+                          <p className="text-sm text-gray-500 mt-1">Quick calculations using simplified method</p>
+                        </button>
+                        <button
+                          onClick={() => setCalculationType('aasho')}
+                          className="p-6 bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all text-left"
+                        >
+                          <h3 className="text-lg font-medium text-gray-900">AASHO EALF</h3>
+                          <p className="text-sm text-gray-500 mt-1">Detailed calculations using AASHO method</p>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ) : selectedOption === 'ealf' ? (
+                <div className="py-8">
+                  <MainCalculator
+                    pavementType={pavementType!}
+                    calculationType={calculationType!}
+                    onReset={handleReset}
+                  />
+                </div>
+              ) : null}
+            </ProtectedRoute>
+          }
         />
-      ) : null}
+        <Route path="/truck-factor" element={<ProtectedRoute><TruckFactor /></ProtectedRoute>} />
+        <Route path="/design-esal" element={<ProtectedRoute><DesignEsal /></ProtectedRoute>} />
+        <Route
+          path="/ealf"
+          element={
+            <ProtectedRoute>
+              <MainCalculator
+                pavementType={pavementType!}
+                calculationType={calculationType!}
+                onReset={handleReset}
+              />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </Router>
   );
 }
 

@@ -3,13 +3,16 @@ import Papa from 'papaparse';
 import { TruckFactorProps, Result, CompanyDetails } from '../types/truckFactor';
 import { CONSTANTS, calculateAASHTOEALF, calculateSimplifiedEALF, processConfiguration, interpretAxleType, getDefaultConfig } from '../utils/esalCalculations';
 import { generatePDF } from '../utils/pdfGenerator';
+import { getVehicleClassification } from '../utils/classificationUtils';
 import ResultsTable from './ResultsTable';
 import FormModal from './FormModal';
 import PavementTypeSelector from './PavementTypeSelector';
 import ESALTypeSelector from './ESALTypeSelector';
-import FileUploadSection from './FileUploadSection';
+import FileUploadSection, { FileUploadSectionRef } from './FileUploadSection';
 import ConfigurationModal from './ConfigurationModal';
 import { ESALConfig } from '../types/config';
+import { ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 type CSVRow = {
   'Truck Type': string;
@@ -28,6 +31,7 @@ type CSVRow = {
 };
 
 const TruckFactor: React.FC<TruckFactorProps> = () => {
+  const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [results, setResults] = useState<Result[] | null>(null);
   const [pavementType, setPavementType] = useState<'flexible' | 'rigid' | null>(null);
@@ -38,6 +42,7 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
   const [config, setConfig] = useState<ESALConfig>(getDefaultConfig());
   const [formData, setFormData] = useState<CompanyDetails | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileUploadSectionRef = useRef<FileUploadSectionRef>(null);
 
   const handleCreateAxleDataFile = (): void => {
     const fileUrl = '/Axle Data Template.xlsx';
@@ -46,7 +51,16 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
     link.download = 'Axle Data Template.xlsx';
     link.click();
   };
-
+  const handleProceedToDesignEsal = () => {
+    if (!results || results.length === 0) return;
+    
+    const truckFactorData = results.map(result => ({
+      'Vehicle Class': result.axleType,
+      'Percent of AADT': '',
+      'Truck Factor': result.averageESAL
+    }));
+    navigate('/design-esal', { state: { truckFactorData } });
+  };
   const handleUploadClick = () => {
     if (!pavementType || !esalType) {
       alert('Please select Pavement Type and Calculation Type (ESAL Type) before uploading a file.');
@@ -58,6 +72,13 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
   const handleFormSubmit = (data: CompanyDetails) => {
     setFormData(data);
     setShowFormModal(false);
+    
+    // Trigger file input click immediately after form submission
+    setTimeout(() => {
+      if (fileUploadSectionRef.current) {
+        fileUploadSectionRef.current.triggerFileInput();
+      }
+    }, 100);
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>): void => {
@@ -81,6 +102,7 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
     setShowConfigModal(false);
   };
 
+  
   const processCSVData = (data: string): void => {
     try {
       Papa.parse<CSVRow>(data, {
@@ -108,35 +130,6 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
           const processedResults: Result[] = [];
           const axleTypeGroups: { [key: string]: { esals: number[]; configs: string[] } } = {};
 
-          const CLASSIFICATION_MAP: { [key: string]: string } = {
-            "SB": "Small Buses",
-            "MB": "Medium Buses",
-            "LB2": "Large Buses (2-axle)",
-            "LB3": "Large Buses (3-axle)",
-            "LT": "Light Trucks",
-            "MT1": "Medium Trucks",
-            "MT2": "Medium Trucks",
-            "HT5": "Heavy Trucks",
-            "HT4": "Heavy Trucks",
-            "3T1": "3-axle trailers",
-            "3T2": "3-axle trailers",
-            "4T1": "4-axle trailers",
-            "4T2": "4-axle trailers",
-            "5T1": "5-axle trailers",
-            "5T2": "5-axle trailers",
-            "5T3": "5-axle trailers",
-            "6T1": "6-axle trailers",
-            "6T2": "6-axle trailers",
-            "7T1": "7-axle trailers",
-            "7T2": "7-axle trailers",
-            "7T3": "7-axle trailers",
-            "8T1": "8-axle trailers",
-            "8T2": "8-axle trailers",
-            "9T1": "9-axle trailers",
-            "9T2": "9-axle trailers",
-            "10T": "10-axle trailers",
-          };
-
           validRows.forEach((row) => {
             const typedRow = row as CSVRow;
             const configStr = typedRow['Configuration'];
@@ -145,8 +138,9 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
               .map((num) => parseInt(num.trim()))
               .filter((num) => !isNaN(num) && num > 0);
 
-            const code = typedRow['Truck Type'].trim().toUpperCase();
-            const axleType = CLASSIFICATION_MAP[code] || code;
+            const code = typedRow['Truck Type'].trim();
+            // Use the new utility function to get a more dynamic classification
+            const axleType = getVehicleClassification(code);
 
             const axleLoads = Array.from({ length: 9 }, (_, idx) => {
               const loadInKg = parseFloat(typedRow[`Axle ${idx + 1}`]) || 0;
@@ -176,13 +170,14 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
               });
             }
 
-            const baseAxleType = axleType.replace(/(1|2|3|4)$/, '');
-
-            if (!axleTypeGroups[baseAxleType]) {
-              axleTypeGroups[baseAxleType] = { esals: [], configs: [] };
+            // Extract base axle type for grouping, removing version numbers (e.g., T1, T2)
+            // Now handled by the getVehicleClassification function
+            
+            if (!axleTypeGroups[axleType]) {
+              axleTypeGroups[axleType] = { esals: [], configs: [] };
             }
-            axleTypeGroups[baseAxleType].esals.push(esal);
-            axleTypeGroups[baseAxleType].configs.push(configStr);
+            axleTypeGroups[axleType].esals.push(esal);
+            axleTypeGroups[axleType].configs.push(configStr);
           });
 
           Object.entries(axleTypeGroups).forEach(([axleType, data]) => {
@@ -251,10 +246,11 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
             onClick={() => setShowConfigModal(true)}
             className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
-            Configure ESAL Parameters
+            Select ESAL Parameters
           </button>
 
           <FileUploadSection
+            ref={fileUploadSectionRef}
             onCreateTemplate={handleCreateAxleDataFile}
             onUploadClick={handleUploadClick}
             onFileUpload={handleFileUpload}
@@ -265,9 +261,17 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
       {isProcessing && <div className="text-center text-blue-500">Processing...</div>}
 
       {results && results.length > 0 && (
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Results</h2>
+        <div className="space-y-4">
           <ResultsTable results={results} />
+          <div className="flex justify-end mt-4">
+            <button
+              onClick={handleProceedToDesignEsal}
+              className="inline-flex items-center justify-center gap-2"
+            >
+              Proceed to Design ESAL
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       )}
 

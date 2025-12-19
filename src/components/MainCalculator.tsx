@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowLeft, Download, Info } from 'lucide-react';
 import { SimplifiedForm } from './SimplifiedForm';
 import { AashoForm } from './AashoForm';
+import { AdvancedEALFChart } from './charts/AdvancedEALFChart';
 import { PDFDocument, StandardFonts } from 'pdf-lib';
 import { saveAs } from 'file-saver';
 
@@ -13,11 +14,11 @@ interface MainCalculatorProps {
 
 export function MainCalculator({ pavementType, calculationType, onReset }: MainCalculatorProps) {
   const [result, setResult] = useState<number | null>(null);
-  const [inputValues, setInputValues] = useState<any>(null); // Store input details for PDF generation
+  const [inputValues, setInputValues] = useState<any>(null);
 
   const handleCalculate = (value: number, inputs?: any) => {
     setResult(value);
-    setInputValues(inputs); // Capture inputs for detailed PDF generation
+    setInputValues(inputs);
   };
 
   const handleReset = () => {
@@ -50,51 +51,18 @@ export function MainCalculator({ pavementType, calculationType, onReset }: MainC
       });
       yPosition -= 30;
 
-      // Steps
       if (calculationType === 'simplified') {
         page.drawText('Step 1: Formula', { x: 50, y: yPosition, size: fontSize, font: font });
         yPosition -= 20;
         page.drawText('EALF = (Axle Load / Standard Load) ^ Load Exponent', { x: 50, y: yPosition, size: fontSize, font: font });
         yPosition -= 30;
-
-        page.drawText('Step 2: Substitute Values', { x: 50, y: yPosition, size: fontSize, font: font });
-        yPosition -= 20;
-        page.drawText(
-          `EALF = (${inputValues.axleLoad} / ${inputValues.standardLoad}) ^ ${inputValues.loadExponent}`,
-          { x: 50, y: yPosition, size: fontSize, font: font }
-        );
-        yPosition -= 30;
-
-        page.drawText('Step 3: Perform Calculation', { x: 50, y: yPosition, size: fontSize, font: font });
-        yPosition -= 20;
         page.drawText(`EALF = ${result.toFixed(4)}`, { x: 50, y: yPosition, size: fontSize, font: font });
-        
-      } else if (calculationType === 'aasho') {
-        page.drawText('Step 1: Calculate Gt', { x: 50, y: yPosition, size: fontSize, font: font });
-        yPosition -= 20;
-        page.drawText('Gt = log10((4.2 - Pt) / (4.2 - 1.5))', { x: 50, y: yPosition, size: fontSize, font: font });
-        yPosition -= 30;
-
-        page.drawText('Step 2: Calculate βx and β18', { x: 50, y: yPosition, size: fontSize, font: font });
-        yPosition -= 20;
-        page.drawText('Substitute values into formulas for βx and β18', { x: 50, y: yPosition, size: fontSize, font: font });
-        yPosition -= 30;
-
-        page.drawText('Step 3: Calculate log(Wtx/Wt18)', { x: 50, y: yPosition, size: fontSize, font: font });
-        yPosition -= 20;
-        page.drawText(`log(Wtx/Wt18) = ${inputValues.logRatio}`, { x: 50, y: yPosition, size: fontSize, font: font });
-        yPosition -= 30;
-
-        page.drawText('Step 4: Calculate Wtx/Wt18 and EALF', { x: 50, y: yPosition, size: fontSize, font: font });
-        yPosition -= 20;
-        page.drawText(`Wtx/Wt18 = ${inputValues.wtRatio}`, { x: 50, y: yPosition, size: fontSize, font: font });
-        yPosition -= 20;
-        page.drawText(`EALF = 1 / Wtx/Wt18 = ${result.toFixed(4)}`, { x: 50, y: yPosition, size: fontSize, font: font });
+      } else {
+        page.drawText(`EALF = ${result.toFixed(4)}`, { x: 50, y: yPosition, size: fontSize, font: font });
       }
 
       const pdfBytes = await pdfDoc.save();
-      const filename =
-        calculationType === 'simplified' ? 'simplified_ealf_calculation.pdf' : 'aasho_ealf_calculation.pdf';
+      const filename = calculationType === 'simplified' ? 'simplified_ealf_calculation.pdf' : 'aasho_ealf_calculation.pdf';
       saveAs(new Blob([pdfBytes], { type: 'application/pdf' }), filename);
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -102,49 +70,80 @@ export function MainCalculator({ pavementType, calculationType, onReset }: MainC
   };
 
   return (
-    <div className="max-w-4xl mx-auto pt-10 px-4">
-      {/* Back Button */}
-      <button onClick={handleReset} className="flex items-center text-blue-600 hover:text-blue-700 mb-8">
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Selection
-      </button>
-
-      <div className="bg-white rounded-lg shadow-lg p-6 md:p-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header Area */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div>
+          <button
+            onClick={handleReset}
+            className="group flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors mb-2"
+          >
+            <ArrowLeft className="w-4 h-4 mr-1 group-hover:-translate-x-1 transition-transform" />
+            Back to Selection
+          </button>
+          <h1 className="text-2xl font-bold text-gray-900">
             {calculationType === 'simplified' ? 'Simplified EALF Calculator' : 'AASHO EALF Calculator'}
-          </h2>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={generatePDF}
-              className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-blue-50"
-              title="Download Results"
-            >
-              <Download className="w-5 h-5" />
-            </button>
-            <button className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-blue-50" title="Help">
-              <Info className="w-5 h-5" />
-            </button>
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {calculationType === 'simplified'
+              ? 'Calculate equivalent axle load factor using the 4th power law'
+              : 'Detailed analysis using AASHO road test equations'}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={generatePDF}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+          >
+            <Download className="w-4 h-4" />
+            Export PDF
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left Column: Form */}
+        <div className="lg:col-span-7">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
+            {calculationType === 'simplified' ? (
+              <SimplifiedForm onCalculate={handleCalculate} />
+            ) : (
+              <AashoForm onCalculate={handleCalculate} pavementType={pavementType} />
+            )}
           </div>
         </div>
 
-        {/* Form Selection */}
-        <div>
-          {calculationType === 'simplified' ? (
-            <SimplifiedForm onCalculate={handleCalculate} />
-          ) : (
-            <AashoForm onCalculate={handleCalculate} pavementType={pavementType} />
+        {/* Right Column: Advanced Visualization & Result */}
+        <div className="lg:col-span-5 flex flex-col gap-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8 flex flex-col items-center justify-center min-h-[420px]">
+            <AdvancedEALFChart
+              axleLoad={inputValues?.axleLoad || 0}
+              standardLoad={inputValues?.standardLoad || 0}
+              result={result}
+              unit={inputValues?.unit || 'kN'}
+              loadExponent={inputValues?.loadExponent}
+              pt={inputValues?.pt}
+              sn={inputValues?.sn}
+              d={inputValues?.d}
+              pavementType={pavementType}
+              calculationType={calculationType}
+            />
+          </div>
+
+          {result !== null && (
+            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 text-white shadow-xl transform transition-all hover:scale-[1.02]">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-blue-100 font-medium text-sm uppercase tracking-wider">Calculated EALF</h4>
+                <div className="bg-white/20 px-2 py-1 rounded text-xs">Impact Factor</div>
+              </div>
+              <div className="text-5xl font-bold mb-2 tracking-tight">{result.toFixed(4)}</div>
+              <p className="text-blue-100 text-sm opacity-90 border-t border-white/20 pt-3 mt-1">
+                1 Axle Pass ≈ <strong>{result.toFixed(2)}</strong> Standard Axle Passes
+              </p>
+            </div>
           )}
         </div>
-
-        {/* Show Result */}
-        {result !== null && (
-          <div className="mt-8 p-4 bg-blue-50 rounded-lg">
-            <h3 className="text-lg font-medium text-gray-800 mb-2">Result</h3>
-            <p className="text-2xl font-bold text-blue-600">{result.toFixed(4)}</p>
-          </div>
-        )}
       </div>
     </div>
   );

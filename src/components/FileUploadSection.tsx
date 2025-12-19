@@ -1,5 +1,4 @@
-
-import React, { useRef } from 'react';
+import React, { useRef, forwardRef, useImperativeHandle } from 'react';
 
 interface FileUploadSectionProps {
   onCreateTemplate: () => void;
@@ -7,12 +6,24 @@ interface FileUploadSectionProps {
   onFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-const FileUploadSection: React.FC<FileUploadSectionProps> = ({
+export interface FileUploadSectionRef {
+  triggerFileInput: () => void;
+}
+
+const FileUploadSection = forwardRef<FileUploadSectionRef, FileUploadSectionProps>(({
   onCreateTemplate,
   onUploadClick,
   onFileUpload,
-}) => {
+}, ref) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    triggerFileInput: () => {
+      if (fileInputRef.current) {
+        fileInputRef.current.click();
+      }
+    }
+  }));
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -40,6 +51,8 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
       />
     </div>
   );
-};
+});
+
+FileUploadSection.displayName = 'FileUploadSection';
 
 export default FileUploadSection;
