@@ -1,14 +1,25 @@
 import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { MainCalculator } from './components/MainCalculator';
 import TruckFactor from './components/TruckFactor';
 import DesignEsal from './components/DesignEsal';
 import { Header } from './components/Header';
-import { ChevronLeft } from 'lucide-react'; // Import the back arrow icon
+import { Dashboard } from './components/Dashboard';
+import { ChevronLeft } from 'lucide-react';
+import { AuthProvider } from './context/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import LoginPage from './components/auth/LoginPage';
+import SignupFlowPage from './components/auth/SignupFlowPage';
+import ForgotPasswordPage from './components/auth/ForgotPasswordPage';
+import OTPPage from './components/auth/OTPPage';
 
-function App() {
+function AppContent() {
   const [selectedOption, setSelectedOption] = useState<'ealf' | 'truckFactor' | 'designEsals' | null>(null);
   const [pavementType, setPavementType] = useState<'flexible' | 'rigid' | null>(null);
   const [calculationType, setCalculationType] = useState<'simplified' | 'aasho' | null>(null);
+
+  const location = useLocation();
+  const isAuthRoute = ['/login', '/signup', '/forgot-password', '/verify-otp'].includes(location.pathname);
 
   const handleReset = () => {
     setSelectedOption(null);
@@ -159,14 +170,6 @@ function App() {
         />
       </Routes>
     </div>
-  );
-
-}
-function App() {
-  return (
-    <Router>
-      <AppContent />
-    </Router>
   );
 }
 
