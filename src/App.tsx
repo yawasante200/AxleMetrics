@@ -1,43 +1,14 @@
-import { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import { MainCalculator } from './components/MainCalculator';
 import TruckFactor from './components/TruckFactor';
 import DesignEsal from './components/DesignEsal';
 import { Header } from './components/Header';
-import { Dashboard } from './components/Dashboard';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react'; // Import the back arrow icon
 
-// Auth Pages
-import LoginPage from './components/auth/LoginPage';
-import SignupFlowPage from './components/auth/SignupFlowPage';
-import ForgotPasswordPage from './components/auth/ForgotPasswordPage';
-import OTPPage from './components/auth/OTPPage';
-
-// Auth Context
-import { AuthProvider, useAuth } from './context/AuthContext';
-
-// Routes where the header should be hidden
-const authRoutes = ['/login', '/signup', '/forgot-password', '/verify-otp'];
-
-// Protected Route wrapper
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
-  const location = useLocation();
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  return <>{children}</>;
-}
-
-function AppContent() {
+function App() {
   const [selectedOption, setSelectedOption] = useState<'ealf' | 'truckFactor' | 'designEsals' | null>(null);
   const [pavementType, setPavementType] = useState<'flexible' | 'rigid' | null>(null);
   const [calculationType, setCalculationType] = useState<'simplified' | 'aasho' | null>(null);
-  const location = useLocation();
-
-  const isAuthRoute = authRoutes.some(route => location.pathname.startsWith(route));
 
   const handleReset = () => {
     setSelectedOption(null);
@@ -188,6 +159,14 @@ function AppContent() {
         />
       </Routes>
     </div>
+  );
+
+}
+function App() {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
   );
 }
 
