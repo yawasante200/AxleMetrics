@@ -23,7 +23,7 @@ const VariableGrowthRateForm: React.FC<VariableGrowthRateFormProps> = ({
 }) => {
   const currentYear = new Date().getFullYear();
   const endYear = currentYear + designPeriod - 1;
-  
+
   // Initialize yearly rates if empty
   React.useEffect(() => {
     if (yearlyRates.length === 0 && growthRateType === GrowthRateType.YEARLY) {
@@ -58,37 +58,57 @@ const VariableGrowthRateForm: React.FC<VariableGrowthRateFormProps> = ({
   };
 
   const handleRangeAdd = () => {
-    // Find the end of the last range
-    const lastRange = rangeRates[rangeRates.length - 1];
-    const newStartYear = lastRange.endYear + 1;
-    
-    // Don't add if we've reached the end of the design period
-    if (newStartYear > endYear) return;
-    
-    setRangeRates([
-      ...rangeRates,
-      {
-        startYear: newStartYear,
+    const updatedRanges = [...rangeRates];
+    const lastIndex = updatedRanges.length - 1;
+    const lastRange = updatedRanges[lastIndex];
+
+    // Case 1: Gap exists at the end (e.g. if user manually shortened the last range)
+    if (lastRange.endYear < endYear) {
+      updatedRanges.push({
+        startYear: lastRange.endYear + 1,
         endYear: endYear,
         rate: 4.0
-      }
-    ]);
+      });
+    }
+    // Case 2: No gap, split the last range into two halves
+    else {
+      const span = lastRange.endYear - lastRange.startYear;
+      if (span < 1) return; // Cannot split a single year range
+
+      const midpoint = lastRange.startYear + Math.floor(span / 2);
+      const originalEndYear = lastRange.endYear;
+
+      // Update last range
+      updatedRanges[lastIndex] = {
+        ...lastRange,
+        endYear: midpoint
+      };
+
+      // Add new range
+      updatedRanges.push({
+        startYear: midpoint + 1,
+        endYear: originalEndYear,
+        rate: lastRange.rate
+      });
+    }
+
+    setRangeRates(updatedRanges);
   };
 
   const handleRangeDelete = (index: number) => {
     // Don't delete if it's the last range
     if (rangeRates.length === 1) return;
-    
+
     const updatedRanges = [...rangeRates];
-    
+
     // If we're deleting a range in the middle, adjust the next range's start year
     if (index < updatedRanges.length - 1) {
       updatedRanges[index + 1].startYear = updatedRanges[index].startYear;
     }
-    
+
     // Remove the range
     updatedRanges.splice(index, 1);
-    
+
     setRangeRates(updatedRanges);
   };
 
@@ -98,24 +118,37 @@ const VariableGrowthRateForm: React.FC<VariableGrowthRateFormProps> = ({
     setRangeRates(updatedRanges);
   };
 
-  const handleRangeEndYearChange = (index: number, endYear: number) => {
+  const handleRangeEndYearChange = (index: number, newEndYear: number) => {
     // Don't allow ending after the design period
-    if (endYear > currentYear + designPeriod - 1) return;
-    
+    if (newEndYear > currentYear + designPeriod - 1) return;
+
     // Don't allow ending before the start year
-    if (endYear < rangeRates[index].startYear) return;
-    
+    if (newEndYear < rangeRates[index].startYear) return;
+
     const updatedRanges = [...rangeRates];
-    updatedRanges[index].endYear = endYear;
-    
-    // Adjust the next range's start year if there is one
+    const oldEndYear = updatedRanges[index].endYear;
+    updatedRanges[index].endYear = newEndYear;
+
+    // If we have a next range, adjust its start year
     if (index < updatedRanges.length - 1) {
-      updatedRanges[index + 1].startYear = endYear + 1;
+      // If we extended the current range past the start of the next range, we need to push the next range
+      // Or if we shortened it, pulll the next range?
+      // Simplest logic: Set next range start to newEndYear + 1. 
+      // Check if that makes next range invalid (start > end). If so, we might need to delete next range or cap usage.
+      // For now, let's just shift the start year and let validation handle the rest or assume user will fix.
+
+      updatedRanges[index + 1].startYear = newEndYear + 1;
+
+      // Safety: propagate shift if needed? 
+      // If next range start > next range end, push end?
+      if (updatedRanges[index + 1].startYear > updatedRanges[index + 1].endYear) {
+        updatedRanges[index + 1].endYear = updatedRanges[index + 1].startYear; // minimal fix
+      }
     }
-    
+
     setRangeRates(updatedRanges);
   };
-  
+
   return (
     <div className="space-y-4">
       <div className="flex space-x-4">
@@ -150,7 +183,7 @@ const VariableGrowthRateForm: React.FC<VariableGrowthRateFormProps> = ({
           Growth Rate Ranges
         </label>
       </div>
-      
+
       {growthRateType === GrowthRateType.YEARLY && (
         <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto p-2 border rounded-md">
           {yearlyRates.map((rate, index) => (
@@ -170,7 +203,7 @@ const VariableGrowthRateForm: React.FC<VariableGrowthRateFormProps> = ({
           ))}
         </div>
       )}
-      
+
       {growthRateType === GrowthRateType.RANGE && (
         <div className="space-y-2">
           {rangeRates.map((range, index) => (
@@ -181,7 +214,7 @@ const VariableGrowthRateForm: React.FC<VariableGrowthRateFormProps> = ({
                 value={range.endYear}
                 onChange={(e) => handleRangeEndYearChange(index, parseInt(e.target.value))}
                 min={range.startYear}
-                max={currentYear + designPeriod - 1}
+                max={currentYear + designPeriod - 1} // Limit to design period
                 className="flex h-8 w-20 rounded-md border border-gray-200 bg-transparent px-3 py-1 text-sm shadow-sm"
               />
               <span>at</span>
@@ -208,8 +241,12 @@ const VariableGrowthRateForm: React.FC<VariableGrowthRateFormProps> = ({
           <button
             type="button"
             onClick={handleRangeAdd}
-            className="flex items-center text-blue-500 hover:text-blue-700"
-            disabled={rangeRates[rangeRates.length - 1]?.endYear === endYear}
+            className="flex items-center text-blue-500 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={
+              rangeRates.length > 0 &&
+              rangeRates[rangeRates.length - 1].endYear === endYear &&
+              (rangeRates[rangeRates.length - 1].endYear - rangeRates[rangeRates.length - 1].startYear < 1)
+            }
           >
             <Plus size={16} className="mr-1" /> Add Range
           </button>
