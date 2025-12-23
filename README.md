@@ -85,8 +85,8 @@ src/
 
 ## detailed Calculation Methods
 
-- **AASHTO 1993**: Uses the standard equations for flexible and rigid pavements.
-- **Simplified Method**: Provides quick estimates for preliminary design.
+- **AASHTO 1993 Original Equations**: Uses the standard equations for flexible and rigid pavements.
+- **AASHTO 1993 Simplified Method**: Provides quick estimates for preliminary design.
 
 ---
 
