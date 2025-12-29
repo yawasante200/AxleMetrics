@@ -1,3 +1,5 @@
+// This is config.ts
+// It contains the types for the configuration
 
 export interface ESALConfig {
   ptVal: number;
@@ -7,6 +9,7 @@ export interface ESALConfig {
     single: { kg: number; kN: number; kips: number };
     tandem: { kg: number; kN: number; kips: number };
     tridem: { kg: number; kN: number; kips: number };
+    quad: { kg: number; kN: number; kips: number };
   };
   loadEquivalencyExponent: number;
   unit: 'kN' | 'kips' | 'kg';

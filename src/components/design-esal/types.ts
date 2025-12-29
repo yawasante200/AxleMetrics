@@ -7,6 +7,7 @@ export const formSchema = z.object({
   designPeriod: z.coerce.number().min(1, "Design period must be at least 1 year").max(50, "Design period must be less than 50 years"),
   directionDistribution: z.coerce.number().min(0, "Percentage cannot be negative").max(100, "Percentage cannot exceed 100"),
   laneDistribution: z.coerce.number().min(0, "Percentage cannot be negative").max(100, "Percentage cannot exceed 100"),
+  baseYear: z.coerce.number().min(1990, "Base year must be 1990 or later").max(new Date().getFullYear() + 10, "Base year seems too far in the future"),
 });
 
 export type FormValues = z.infer<typeof formSchema>;
@@ -40,14 +41,7 @@ export interface VehicleType {
   truckFactor: number;
 }
 
-export interface CompanyDetails {
-  company: string;
-  address: string;
-  phone: string;
-  date: string;
-  project: string;
-  name: string;
-}
+// CompanyDetails is imported from '../../types/truckFactor' where needed
 
 export const commonVehicleTypes: VehicleType[] = [
   { name: "Passenger Car", truckFactor: 0.0008 },

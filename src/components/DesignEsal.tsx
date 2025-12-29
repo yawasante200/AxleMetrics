@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import Papa from 'papaparse';
-import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import DesignEsalTable, { VehicleEsalData } from './DesignEsalTable';
 import { calculateGrowthFactor, calculateRangeBasedGrowthFactor, calculateVariableYearlyGrowthFactor, createTemplateFile, convertTruckFactorDataToVehicleEsalData } from './design-esal/utils';
@@ -11,15 +10,17 @@ import ResultsExport from './design-esal/ResultsExport';
 import VehicleDataForm from './design-esal/VehicleDataForm';
 import { FormValues, TruckFactorCSVRow, GrowthRateCSVRow, GrowthRate, GrowthRateRange, GrowthRateType } from './design-esal/types';
 import { CompanyDetails } from '../types/truckFactor';
+import CompanyDetailsDialog from './design-esal/CompanyDetailsDialog';
 
 interface DesignEsalProps {
   onCalculate?: (designEsal: number) => void;
-  truckFactorData?: TruckFactorCSVRow[];
+  initialData?: {
+    truckFactorData: TruckFactorCSVRow[];
+    companyDetails?: CompanyDetails;
+  };
 }
 
-const DesignEsal: React.FC<DesignEsalProps> = ({ onCalculate }) => {
-  const navigate = useNavigate();
-  const location = useLocation();
+const DesignEsal: React.FC<DesignEsalProps> = ({ onCalculate, initialData }) => {
   const [currentStep, setCurrentStep] = useState<number>(1);
 
   // Data States
@@ -38,7 +39,8 @@ const DesignEsal: React.FC<DesignEsalProps> = ({ onCalculate }) => {
     growthRate: 4,
     designPeriod: 20,
     directionDistribution: 60,
-    laneDistribution: 90
+    laneDistribution: 90,
+    baseYear: new Date().getFullYear()
   });
 
   const [truckFactorData, setTruckFactorData] = useState<TruckFactorCSVRow[]>([]);
@@ -54,20 +56,21 @@ const DesignEsal: React.FC<DesignEsalProps> = ({ onCalculate }) => {
   });
   const [showCompanyDialog, setShowCompanyDialog] = useState<boolean>(false);
 
+  // Handle initial data from TruckFactor
   useEffect(() => {
-    if (location.state?.truckFactorData && location.state.truckFactorData.length > 0) {
-      const receivedTruckFactorData = location.state.truckFactorData;
+    if (initialData?.truckFactorData && initialData.truckFactorData.length > 0) {
+      const receivedTruckFactorData = initialData.truckFactorData;
       setTruckFactorData(receivedTruckFactorData);
 
       const convertedData = convertTruckFactorDataToVehicleEsalData(receivedTruckFactorData);
       setVehicleData(convertedData);
       setDataSource('truckFactor');
 
-      if (location.state.companyDetails) {
-        setCompanyDetails(location.state.companyDetails);
+      if (initialData.companyDetails) {
+        setCompanyDetails(initialData.companyDetails);
       }
     }
-  }, [location.state]);
+  }, [initialData]);
 
   const handleVehicleDataUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -158,11 +161,9 @@ const DesignEsal: React.FC<DesignEsalProps> = ({ onCalculate }) => {
     const directionFactor = formValues.directionDistribution / 100;
     const laneFactor = formValues.laneDistribution / 100;
 
-    // Validate Total Percentage if using Truck Factor or Manual
     const totalPercentage = vehicleData.reduce((sum, v) => sum + v.percentOfAadt, 0);
     if ((dataSource === 'manual' || dataSource === 'truckFactor') && Math.abs(totalPercentage - 100) > 0.1) {
-      // Just a warning or block? Let's warn but allow.
-      // alert("Warning: Total vehicle percentage is " + totalPercentage.toFixed(1) + "%. It should nominally be 100%.");
+      // Warning only
     }
 
     const updatedVehicleData = vehicleData.map(vehicle => {
@@ -173,9 +174,9 @@ const DesignEsal: React.FC<DesignEsalProps> = ({ onCalculate }) => {
       let growthFactor;
       if (useVariableGrowthRate) {
         if (growthRateType === GrowthRateType.YEARLY && growthRates.length > 0) {
-          growthFactor = calculateVariableYearlyGrowthFactor(growthRates, formValues.designPeriod);
+          growthFactor = calculateVariableYearlyGrowthFactor(growthRates, formValues.designPeriod, formValues.baseYear);
         } else if (growthRateType === GrowthRateType.RANGE && growthRateRanges.length > 0) {
-          growthFactor = calculateRangeBasedGrowthFactor(growthRateRanges, formValues.designPeriod);
+          growthFactor = calculateRangeBasedGrowthFactor(growthRateRanges, formValues.designPeriod, formValues.baseYear);
         } else {
           growthFactor = calculateGrowthFactor(formValues.growthRate, formValues.designPeriod);
         }
@@ -184,7 +185,12 @@ const DesignEsal: React.FC<DesignEsalProps> = ({ onCalculate }) => {
       }
 
       const yearlyTraffic = designLaneAadt * growthFactor * 365;
-      const designEsals = yearlyTraffic * vehicle.truckFactor;
+      let designEsals = yearlyTraffic * vehicle.truckFactor;
+      
+      // Guard against infinity/NaN
+      if (!isFinite(designEsals) || isNaN(designEsals)) {
+        designEsals = 0;
+      }
 
       return {
         ...vehicle,
@@ -212,10 +218,6 @@ const DesignEsal: React.FC<DesignEsalProps> = ({ onCalculate }) => {
     if (onCalculate) {
       onCalculate(totalEsals);
     }
-  };
-
-  const handleBackToTruckFactor = () => {
-    navigate('/truck-factor');
   };
 
   const handlePercentageChange = (index: number, value: string) => {
@@ -253,7 +255,7 @@ const DesignEsal: React.FC<DesignEsalProps> = ({ onCalculate }) => {
         setGrowthRates={setGrowthRates}
         growthRateRanges={growthRateRanges}
         setGrowthRateRanges={setGrowthRateRanges}
-        vehicleDataLength={vehicleData.length} // Not strictly used for disabling anymore
+        vehicleDataLength={vehicleData.length}
         growthRatesLength={growthRateType === GrowthRateType.YEARLY ? growthRates.length : growthRateRanges.length}
         setDesignPeriod={setDesignPeriod}
         growthRateType={growthRateType}
@@ -380,7 +382,6 @@ const DesignEsal: React.FC<DesignEsalProps> = ({ onCalculate }) => {
           Calculate Design ESAL Results
         </button>
       </div>
-
     </div>
   );
 
@@ -415,6 +416,7 @@ const DesignEsal: React.FC<DesignEsalProps> = ({ onCalculate }) => {
         directionalDistributionFactor={formValues.directionDistribution / 100}
         laneDistributionFactor={formValues.laneDistribution / 100}
         totalDesignEsals={totalDesignEsals}
+        baseYear={formValues.baseYear}
       />
 
       <div className="flex justify-start pt-4 border-t">
@@ -430,11 +432,11 @@ const DesignEsal: React.FC<DesignEsalProps> = ({ onCalculate }) => {
 
   return (
     <div className="space-y-8">
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+      <div className="bg-white border-2 border-gray-350 rounded-lg shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-gray-350 flex items-center justify-between flex-wrap gap-2">
           <h2 className="text-xl font-bold">Design ESAL Calculator</h2>
           <div className="flex items-center gap-2">
-            <div className="hidden lg:flex items-center mr-4 bg-gray-100 rounded-full px-3 py-1 shrink-0">
+            <div className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50 border border-gray-200 bg-white shadow-sm hover:bg-gray-100 h-9 px-4 py-2 flex items-center gap-2 whitespace-nowrap">
               <span className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold mr-2 ${currentStep >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'}`}>1</span>
               <span className={`text-sm ${currentStep >= 1 ? 'font-medium text-gray-900' : 'text-gray-500'}`}>Parameters</span>
               <div className="w-4 h-px bg-gray-300 mx-2"></div>
@@ -451,13 +453,6 @@ const DesignEsal: React.FC<DesignEsalProps> = ({ onCalculate }) => {
             >
               Company Details
             </button>
-            <button
-              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50 border border-gray-200 bg-white shadow-sm hover:bg-gray-100 h-9 px-4 py-2 flex items-center gap-1 whitespace-nowrap shrink-0"
-              onClick={handleBackToTruckFactor}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Back to Truck Factor
-            </button>
           </div>
         </div>
         <div className="p-6">
@@ -467,6 +462,16 @@ const DesignEsal: React.FC<DesignEsalProps> = ({ onCalculate }) => {
         </div>
       </div>
 
+      {/* Company Details Dialog */}
+      <CompanyDetailsDialog
+        isOpen={showCompanyDialog}
+        onClose={() => setShowCompanyDialog(false)}
+        onSave={(details) => {
+          setCompanyDetails(details);
+          setShowCompanyDialog(false);
+        }}
+        initialDetails={companyDetails}
+      />
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatGrowthRate } from './design-esal/utils';
 
 export interface VehicleEsalData {
   vehicleClass: string;
@@ -20,6 +21,7 @@ interface DesignEsalTableProps {
   directionalDistributionFactor: number;
   laneDistributionFactor: number;
   totalDesignEsals: number;
+  baseYear?: number;
 }
 
 const DesignEsalTable: React.FC<DesignEsalTableProps> = ({
@@ -28,7 +30,8 @@ const DesignEsalTable: React.FC<DesignEsalTableProps> = ({
   designPeriod,
   directionalDistributionFactor,
   laneDistributionFactor,
-  totalDesignEsals
+  totalDesignEsals,
+  baseYear = new Date().getFullYear()
 }) => {
   return (
     <div className="w-full overflow-auto border border-gray-200 rounded-lg shadow-sm">
@@ -44,7 +47,7 @@ const DesignEsalTable: React.FC<DesignEsalTableProps> = ({
                 <th className="h-12 px-4 text-left align-middle font-bold text-center">Vehicle Class</th>
                 <th className="h-12 px-4 text-left align-middle font-bold text-center">Percent of AADT</th>
                 <th className="h-12 px-4 text-left align-middle font-bold text-center">
-                  {new Date().getFullYear()} <br />2-Way AADT
+                  {baseYear} <br />2-Way AADT
                   <br />[a]
                 </th>
                 <th className="h-12 px-4 text-left align-middle font-bold text-center">
@@ -83,9 +86,7 @@ const DesignEsalTable: React.FC<DesignEsalTableProps> = ({
                   <td className="p-4 align-middle text-center">{row.directionalAadt.toLocaleString()}</td>
                   <td className="p-4 align-middle text-center">{row.designLaneAadt.toLocaleString()}</td>
                   <td className="p-4 align-middle text-center">
-                    {Array.isArray(row.growthRate)
-                      ? `Variable`
-                      : row.growthRate.toFixed(1)}
+                    {formatGrowthRate(row.growthRate)}
                   </td>
                   <td className="p-4 align-middle text-center">{row.growthFactor.toFixed(3)}</td>
                   <td className="p-4 align-middle text-center">{row.yearlyTraffic.toLocaleString()}</td>
@@ -113,7 +114,7 @@ const DesignEsalTable: React.FC<DesignEsalTableProps> = ({
           <div className="col-span-1">
             <div className="bg-gray-200 p-3">
               <div className="grid grid-cols-2 gap-2">
-                <div>{new Date().getFullYear()} AADT</div>
+                <div>{baseYear} AADT</div>
                 <div className="text-right">{totalAadt.toLocaleString()}</div>
               </div>
               <div className="grid grid-cols-2 gap-2">

@@ -5,6 +5,7 @@ import { generateFlexibleOriginalPDF } from './flexibleOriginalPdfGenerator';
 import { generateRigidOriginalPDF } from './rigidOriginalPdfGenerator';
 import { generateFlexibleSimplifiedPDF } from './flexibleSimplifiedPdfGenerator';
 
+// This is pdfGenerator.ts file.
 export const generatePDF = async (
   data: Result[],
   formData: CompanyDetails,

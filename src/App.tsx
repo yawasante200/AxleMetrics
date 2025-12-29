@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { MainCalculator } from './components/MainCalculator';
 import TruckFactor from './components/TruckFactor';
@@ -17,6 +17,7 @@ function AppContent() {
   const [selectedOption, setSelectedOption] = useState<'ealf' | 'truckFactor' | 'designEsals' | null>(null);
   const [pavementType, setPavementType] = useState<'flexible' | 'rigid' | null>(null);
   const [calculationType, setCalculationType] = useState<'simplified' | 'aasho' | null>(null);
+  const [truckFactorResults, setTruckFactorResults] = useState<any>(null);
 
   const location = useLocation();
   const isAuthRoute = ['/login', '/signup', '/forgot-password', '/verify-otp'].includes(location.pathname);
@@ -25,6 +26,7 @@ function AppContent() {
     setSelectedOption(null);
     setPavementType(null);
     setCalculationType(null);
+    setTruckFactorResults(null);
   };
 
   const handleBack = () => {
@@ -34,20 +36,37 @@ function AppContent() {
       setPavementType(null);
     } else {
       setSelectedOption(null);
+      setTruckFactorResults(null);
     }
   };
 
   const handleSelectFeature = (feature: 'ealf' | 'truckFactor' | 'designEsals') => {
     setSelectedOption(feature);
+    setTruckFactorResults(null);
+  };
+
+  const handleProceedToDesignEsal = (data: any) => {
+    setTruckFactorResults(data);
+    setSelectedOption('designEsals');
+  };
+
+  const handleBackToTruckFactor = () => {
+    setSelectedOption('truckFactor');
+  };
+
+  const handleBackToDashboard = () => {
+    setSelectedOption(null);
+    setPavementType(null);
+    setCalculationType(null);
+    setTruckFactorResults(null);
   };
 
   return (
     <div className={`min-h-screen ${isAuthRoute ? 'bg-white' : 'bg-gray-50/50'}`}>
-      {/* Only show header on non-auth routes */}
       {!isAuthRoute && <Header />}
 
       <Routes>
-        {/* Auth Routes - No Header, No Protection */}
+        {/* Auth Routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupFlowPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -62,24 +81,31 @@ function AppContent() {
                 <Dashboard onSelectFeature={handleSelectFeature} />
               ) : selectedOption === 'truckFactor' ? (
                 <div className="max-w-4xl mx-auto py-8 px-4">
-                  <button onClick={handleBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors">
+                  <button 
+                    onClick={handleBackToDashboard} 
+                    className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+                  >
                     <ChevronLeft className="w-5 h-5" />
                     <span className="font-medium">Back to Dashboard</span>
                   </button>
-                  <div className="bg-white rounded-2xl border border-gray-100 p-6">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-6">ESAL Factor Calculation</h2>
-                    <TruckFactor onBack={handleBack} onProceed={() => { }} downloadExcelTemplate={() => { }} />
-                  </div>
+                  <TruckFactor 
+                    onProceedToDesignEsal={handleProceedToDesignEsal}
+                  />
                 </div>
               ) : selectedOption === 'designEsals' ? (
                 <div className="max-w-4xl mx-auto py-8 px-4">
-                  <button onClick={handleBack} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors">
+                  <button 
+                    onClick={truckFactorResults ? handleBackToTruckFactor : handleBackToDashboard}
+                    className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+                  >
                     <ChevronLeft className="w-5 h-5" />
-                    <span className="font-medium">Back to Dashboard</span>
+                    <span className="font-medium">
+                      {truckFactorResults ? 'Back to Truck Factor' : 'Back to Dashboard'}
+                    </span>
                   </button>
                   <div className="bg-white rounded-2xl border border-gray-100 p-6">
                     <h2 className="text-xl font-semibold text-gray-900 mb-6">Design ESAL Calculation</h2>
-                    <DesignEsal />
+                    <DesignEsal initialData={truckFactorResults} />
                   </div>
                 </div>
               ) : selectedOption === 'ealf' && !pavementType ? (
@@ -151,20 +177,6 @@ function AppContent() {
                   />
                 </div>
               ) : null}
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/truck-factor" element={<ProtectedRoute><TruckFactor /></ProtectedRoute>} />
-        <Route path="/design-esal" element={<ProtectedRoute><DesignEsal /></ProtectedRoute>} />
-        <Route
-          path="/ealf"
-          element={
-            <ProtectedRoute>
-              <MainCalculator
-                pavementType={pavementType!}
-                calculationType={calculationType!}
-                onReset={handleReset}
-              />
             </ProtectedRoute>
           }
         />

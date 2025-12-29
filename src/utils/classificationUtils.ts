@@ -4,6 +4,7 @@
 
 // Standard classification map for known vehicle types
 export const CLASSIFICATION_MAP: { [key: string]: string } = {
+    "PC": "Passenger Car",
     "SB": "Small Buses",
     "MB": "Medium Buses",
     "LB2": "Large Buses (2-axle)",

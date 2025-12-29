@@ -5,32 +5,38 @@ import * as FileSaver from 'file-saver';
 export const calculateGrowthFactor = (growthRate: number, years: number): number => {
   const r = growthRate / 100;
   if (r === 0) return years;
-  return (Math.pow(1 + r, years) - 1) / r;
+  const result = (Math.pow(1 + r, years) - 1) / r;
+  // Guard against infinity/NaN
+  if (!isFinite(result) || isNaN(result)) return years;
+  return result;
 };
 
-export const calculateVariableYearlyGrowthFactor = (rates: GrowthRate[], designPeriod: number): number => {
-  let currentYear = new Date().getFullYear();
-  let endYear = currentYear + designPeriod;
+export const calculateVariableYearlyGrowthFactor = (rates: GrowthRate[], designPeriod: number, baseYear?: number): number => {
+  const startYear = baseYear || new Date().getFullYear();
+  let endYear = startYear + designPeriod;
   let cumulativeGrowth = 1;
   let totalTraffic = 0;
 
-  for (let year = currentYear; year < endYear; year++) {
+  for (let year = startYear; year < endYear; year++) {
     const applicableRate = rates.find(r => r.year === year) || rates[rates.length - 1];
     const growthRate = applicableRate ? applicableRate.rate / 100 : 0;
     totalTraffic += cumulativeGrowth;
     cumulativeGrowth *= (1 + growthRate);
   }
   
-  return totalTraffic / designPeriod;
+  const result = totalTraffic / designPeriod;
+  // Guard against infinity/NaN
+  if (!isFinite(result) || isNaN(result)) return 1;
+  return result;
 };
 
-export const calculateRangeBasedGrowthFactor = (ranges: GrowthRateRange[], designPeriod: number): number => {
-  let currentYear = new Date().getFullYear();
-  let endYear = currentYear + designPeriod;
+export const calculateRangeBasedGrowthFactor = (ranges: GrowthRateRange[], designPeriod: number, baseYear?: number): number => {
+  const startYear = baseYear || new Date().getFullYear();
+  let endYear = startYear + designPeriod;
   let cumulativeGrowth = 1;
   let totalTraffic = 0;
   
-  for (let year = currentYear; year < endYear; year++) {
+  for (let year = startYear; year < endYear; year++) {
     // Find applicable range for this year
     const applicableRange = ranges.find(r => year >= r.startYear && year <= r.endYear);
     
@@ -45,7 +51,34 @@ export const calculateRangeBasedGrowthFactor = (ranges: GrowthRateRange[], desig
     }
   }
   
-  return totalTraffic / designPeriod;
+  const result = totalTraffic / designPeriod;
+  // Guard against infinity/NaN
+  if (!isFinite(result) || isNaN(result)) return 1;
+  return result;
+};
+
+// Calculate effective growth rate range for display purposes
+export const getEffectiveGrowthRateRange = (rates: GrowthRate[] | GrowthRateRange[]): { min: number; max: number } => {
+  if (rates.length === 0) return { min: 0, max: 0 };
+  
+  const rateValues = rates.map(r => 'rate' in r ? r.rate : 0);
+  return {
+    min: Math.min(...rateValues),
+    max: Math.max(...rateValues)
+  };
+};
+
+// Format growth rate for display - shows range for variable rates
+export const formatGrowthRate = (growthRate: number | number[]): string => {
+  if (Array.isArray(growthRate)) {
+    if (growthRate.length === 0) return 'N/A';
+    const min = Math.min(...growthRate);
+    const max = Math.max(...growthRate);
+    if (min === max) return `${min.toFixed(1)}%`;
+    return `${min.toFixed(1)}% - ${max.toFixed(1)}%`;
+  }
+  if (!isFinite(growthRate) || isNaN(growthRate)) return 'N/A';
+  return `${growthRate.toFixed(1)}%`;
 };
 
 export const createTemplateFile = (fileType: 'vehicle' | 'growth') => {

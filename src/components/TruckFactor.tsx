@@ -12,7 +12,6 @@ import FileUploadSection, { FileUploadSectionRef } from './FileUploadSection';
 import ConfigurationModal from './ConfigurationModal';
 import { ESALConfig } from '../types/config';
 import { ArrowRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 type CSVRow = {
   'Truck Type': string;
@@ -30,9 +29,11 @@ type CSVRow = {
   [key: string]: string;
 };
 
-const TruckFactor: React.FC<TruckFactorProps> = () => {
-  const navigate = useNavigate();
-  const [file, setFile] = useState<File | null>(null);
+interface TruckFactorComponentProps {
+  onProceedToDesignEsal?: (data: any) => void;
+}
+
+const TruckFactor: React.FC<TruckFactorComponentProps> = ({ onProceedToDesignEsal }) => {
   const [results, setResults] = useState<Result[] | null>(null);
   const [pavementType, setPavementType] = useState<'flexible' | 'rigid' | null>(null);
   const [esalType, setEsalType] = useState<'simplified' | 'AASHTO' | null>(null);
@@ -51,6 +52,7 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
     link.download = 'Axle Data Template.xlsx';
     link.click();
   };
+
   const handleProceedToDesignEsal = () => {
     if (!results || results.length === 0) return;
     
@@ -59,13 +61,26 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
       'Percent of AADT': '',
       'Truck Factor': result.averageESAL
     }));
-    navigate('/design-esal', { state: { truckFactorData } });
+    
+    // Call the prop function passed from App.tsx
+    if (onProceedToDesignEsal) {
+      onProceedToDesignEsal({
+        truckFactorData,
+        companyDetails: formData
+      });
+    }
   };
+
   const handleUploadClick = () => {
     if (!pavementType || !esalType) {
       alert('Please select Pavement Type and Calculation Type (ESAL Type) before uploading a file.');
       return;
     }
+    
+    // Reset everything for a fresh calculation
+    setResults(null);
+    setFormData(null);
+    
     setShowFormModal(true);
   };
 
@@ -83,9 +98,16 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>): void => {
     const uploadedFile = event.target.files?.[0] || null;
+    
+    // Reset the file input to allow re-uploading the same file
+    if (event.target) {
+      event.target.value = '';
+    }
+    
     if (uploadedFile && formData) {
-      setFile(uploadedFile);
       setIsProcessing(true);
+      // Clear previous results before processing new file
+      setResults(null);
 
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -102,7 +124,6 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
     setShowConfigModal(false);
   };
 
-  
   const processCSVData = (data: string): void => {
     try {
       Papa.parse<CSVRow>(data, {
@@ -112,7 +133,7 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
           const headers = result.meta.fields;
           const rows = result.data;
 
-          const requiredColumns = ['Truck Type', 'Configuration', ...Array.from({ length: 9 }, (_, i) => `Axle ${i + 1}`)];
+          const requiredColumns = ['Truck Type', 'Configuration', ...Array.from({ length: 10 }, (_, i) => `Axle ${i + 1}`)];
           const missingColumns = requiredColumns.filter((col) => !headers?.includes(col));
 
           if (missingColumns.length > 0) {
@@ -139,20 +160,19 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
               .filter((num) => !isNaN(num) && num > 0);
 
             const code = typedRow['Truck Type'].trim();
-            // Use the new utility function to get a more dynamic classification
             const axleType = getVehicleClassification(code);
 
-            const axleLoads = Array.from({ length: 9 }, (_, idx) => {
+            const axleLoads = Array.from({ length: 10 }, (_, idx) => {
               const loadInKg = parseFloat(typedRow[`Axle ${idx + 1}`]) || 0;
               if (esalType === 'simplified') {
                 if (config.unit === 'kN') {
-                  return loadInKg * CONSTANTS.KG_TO_KN; // Convert kg to kN
+                  return loadInKg * CONSTANTS.KG_TO_KN;
                 } else if (config.unit === 'kips') {
-                  return loadInKg * CONSTANTS.KG_TO_KIP; // Convert kg to kips
+                  return loadInKg * CONSTANTS.KG_TO_KIP;
                 }
-                return loadInKg; // Keep as kg
+                return loadInKg;
               } else {
-                return loadInKg; // Keep as kg, conversion will happen in calculateAASHTOEALF
+                return loadInKg;
               }
             });
 
@@ -170,9 +190,6 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
               });
             }
 
-            // Extract base axle type for grouping, removing version numbers (e.g., T1, T2)
-            // Now handled by the getVehicleClassification function
-            
             if (!axleTypeGroups[axleType]) {
               axleTypeGroups[axleType] = { esals: [], configs: [] };
             }
@@ -185,7 +202,7 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
             if (avgESAL > 0) {
               processedResults.push({
                 axleType,
-                configuration: data.configs,
+                configuration: [...new Set(data.configs)],  // Deduplicate configurations
                 averageESAL: avgESAL,
               });
             }
@@ -207,6 +224,7 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
   const handlePavementTypeChange = (type: 'flexible' | 'rigid') => {
     setPavementType(type);
     setResults(null);
+    setFormData(null);
     if (type === 'rigid') {
       setEsalType('AASHTO');
     }
@@ -218,6 +236,7 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
   const handleEsalTypeChange = (type: 'simplified' | 'AASHTO') => {
     setEsalType(type);
     setResults(null);
+    setFormData(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -266,7 +285,7 @@ const TruckFactor: React.FC<TruckFactorProps> = () => {
           <div className="flex justify-end mt-4">
             <button
               onClick={handleProceedToDesignEsal}
-              className="inline-flex items-center justify-center gap-2"
+              className="inline-flex items-center justify-center gap-2 px-6 py-2 bg-white text-black border border-gray-300 rounded-md hover:bg-blue-700 transition-colors"
             >
               Proceed to Design ESAL
               <ArrowRight className="h-4 w-4" />
