@@ -3,13 +3,16 @@ import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import { Result, CompanyDetails } from '../types/truckFactor'
 import { ESALConfig } from '../types/config'
+import { ReportMetadata } from '../components/design-esal/types'
 import { createRoot } from 'react-dom/client'
 import PDFTemplate from '../components/PDFTemplate'
 
 export const generateFlexibleOriginalPDF = async (
   data: Result[],
   formData: CompanyDetails,
-  config: ESALConfig
+  config: ESALConfig,
+  reportMetadata?: ReportMetadata,
+  aadtTotalPercentage?: number
 ): Promise<void> => {
   if (!data || data.length === 0) {
     alert('No data available to generate PDF.')
@@ -20,7 +23,7 @@ export const generateFlexibleOriginalPDF = async (
     const container = document.createElement('div')
     container.style.position = 'absolute'
     container.style.left = '-9999px'
-    container.style.width = '210mm' // Fixed A4 width
+    container.style.width = '210mm'
     document.body.appendChild(container)
 
     const root = createRoot(container)
@@ -32,82 +35,79 @@ export const generateFlexibleOriginalPDF = async (
           results: data,
           config: config,
           pavementType: 'flexible',
-          esalType: 'AASHTO'
+          esalType: 'AASHTO',
+          reportMetadata: reportMetadata,
+          aadtTotalPercentage: aadtTotalPercentage
         })
       )
-      setTimeout(resolve, 1000) // Increased timeout for better rendering
+      setTimeout(resolve, 800)
     })
 
     const pdf = new jsPDF('p', 'mm', 'a4')
     const pageWidth = pdf.internal.pageSize.getWidth()
     const pageHeight = pdf.internal.pageSize.getHeight()
 
-    // Wait for elements to be in DOM
     await new Promise(resolve => setTimeout(resolve, 200))
 
-    // ===== CAPTURE MAIN CONTENT =====
+    // Capture main content - OPTIMIZED: reduced scale, JPEG format
     const contentElement = container.querySelector('#pdf-content') as HTMLElement
     if (contentElement) {
       const canvas = await html2canvas(contentElement, {
-        scale: 2,
+        scale: 1.5, // Reduced from 2-3 for smaller file size
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff'
       })
 
-      const imgData = canvas.toDataURL('image/png')
+      const imgData = canvas.toDataURL('image/jpeg', 0.85) // JPEG with 85% quality
       const imgWidth = pageWidth
       const imgHeight = (canvas.height * pageWidth) / canvas.width
 
       let heightLeft = imgHeight
       let position = 0
 
-      // Add first page
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
       heightLeft -= pageHeight
 
-      // Add additional pages if content is longer
       while (heightLeft > 0) {
         position = heightLeft - imgHeight
         pdf.addPage()
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
         heightLeft -= pageHeight
       }
     }
 
-    // ===== CAPTURE VEHICLE CLASSIFICATIONS =====
+    // Capture vehicles - OPTIMIZED
     const vehiclesElement = container.querySelector('#pdf-vehicles') as HTMLElement
     if (vehiclesElement) {
       const canvas = await html2canvas(vehiclesElement, {
-        scale: 2,
+        scale: 1.5,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff'
       })
 
-      const imgData = canvas.toDataURL('image/png')
+      const imgData = canvas.toDataURL('image/jpeg', 0.85)
       const imgWidth = pageWidth
       const imgHeight = (canvas.height * pageWidth) / canvas.width
 
       let heightLeft = imgHeight
       let position = 0
 
-      // Always add a new page for vehicles
       pdf.addPage()
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
       heightLeft -= pageHeight
 
-      // Add additional pages if vehicles section is longer
       while (heightLeft > 0) {
         position = heightLeft - imgHeight
         pdf.addPage()
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
         heightLeft -= pageHeight
       }
     }
 
     const filename =
-      'Flexible-Original-AASHO-ESAL-Report_' +
+      'Flexible-AASHTO-Highway-Design-Report_' +
       new Date().toISOString().split('T')[0] +
       '.pdf'
 

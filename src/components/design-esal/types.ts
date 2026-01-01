@@ -60,3 +60,33 @@ export enum GrowthRateType {
   YEARLY = "yearly",
   RANGE = "range"
 }
+
+// Report metadata for project information
+export interface ReportMetadata {
+  projectLocation: string;
+  projectLength: number;
+  projectLengthUnit: 'km' | 'miles' | 'feet' | 'meters';
+  analystName: string;
+}
+
+// ESAL rounding options
+export enum ESALRoundingOption {
+  NEAREST_100 = 100,
+  NEAREST_1000 = 1000,
+  NEAREST_MILLION = 1000000,
+  NEAREST_BILLION = 1000000000
+}
+
+// AADT validation result
+export interface AADTValidationResult {
+  isValid: boolean;
+  totalPercentage: number;
+  message?: string;
+}
+
+// Yearly ESAL data for charts (Design ESAL vs Year)
+export interface YearlyESALData {
+  year: number;
+  cumulativeESAL: number;
+  yearlyESAL: number;
+}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CompanyDetails } from '../types/truckFactor';
+import { MapPin, User, Building2 } from 'lucide-react';
 
 interface FormModalProps {
   onSubmit: (data: CompanyDetails) => void;
@@ -13,35 +14,199 @@ const FormModal: React.FC<FormModalProps> = ({ onSubmit, onClose }) => {
     phone: '',
     date: new Date().toISOString().split('T')[0],
     project: '',
-    name: ''
+    name: '',
+    projectLocation: '',
+    projectLength: undefined,
+    projectLengthUnit: 'km',
+    analystName: ''
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === 'projectLength') {
+      setFormData((prev) => ({ ...prev, [name]: parseFloat(value) || undefined }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    // Sync analystName with name field
+    const submissionData = {
+      ...formData,
+      name: formData.analystName || formData.name
+    };
+    onSubmit(submissionData);
   };
 
   return (
-    <div className="modal-overlay">
-      <div className='flex flex-col items-center p-6 bg-white border border-gray-200 rounded-lg shadow hover:bg-gray-50 transition-colors cursor-pointer'>
-        <div className="modal">
-          <h2 className="text-xl font-bold">Fill Details</h2>
-          <form onSubmit={handleSubmit} className="space-y-4 space-x-5 flex-2 border-gray-300">
-            <input type="text" name="company" className='ml-4' placeholder="Company" value={formData.company} onChange={handleChange} required />
-            <input type="text" name="address" placeholder="Address" value={formData.address} onChange={handleChange} required />
-            <input type="text" name="phone" placeholder="Phone" value={formData.phone} onChange={handleChange} required />
-            <input type="date" name="date" placeholder="Date" value={formData.date} onChange={handleChange} required />
-            <input type="text" name="project" placeholder="Project" value={formData.project} onChange={handleChange} required />
-            <input type="text" name="name" placeholder="Name" value={formData.name} onChange={handleChange} required />
-            <button type="submit" className="btn-submit px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">Submit</button>
-          </form>
-          <button onClick={onClose} className="btn-close w-full mt-8 px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 bg-red-300 text-red-700 font-bold focus:border-blue-500">Cancel</button>
+    <div className="modal-overlay fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b">
+          <h2 className="text-xl font-bold text-center">Fill Details</h2>
         </div>
+        
+        <form onSubmit={handleSubmit} className="p-6">
+          {/* Project Information Section */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-4 pb-2 border-b">
+              <MapPin className="h-4 w-4 text-green-600" />
+              <h3 className="font-semibold text-gray-700">Project Information</h3>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Project Name *</label>
+                <input 
+                  type="text" 
+                  name="project" 
+                  placeholder="Enter project name" 
+                  value={formData.project} 
+                  onChange={handleChange} 
+                  required 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Project Location *</label>
+                <input 
+                  type="text" 
+                  name="projectLocation" 
+                  placeholder="Enter project location (e.g., Accra-Kumasi Highway)" 
+                  value={formData.projectLocation || ''} 
+                  onChange={handleChange} 
+                  required 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Project Length</label>
+                  <input 
+                    type="number" 
+                    name="projectLength" 
+                    min="0" 
+                    step="0.1"
+                    placeholder="e.g., 25.5" 
+                    value={formData.projectLength || ''} 
+                    onChange={handleChange} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+                  <select
+                    name="projectLengthUnit"
+                    value={formData.projectLengthUnit || 'km'}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="km">Kilometers (km)</option>
+                    <option value="miles">Miles</option>
+                    <option value="meters">Meters</option>
+                    <option value="feet">Feet</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                <input 
+                  type="date" 
+                  name="date" 
+                  value={formData.date} 
+                  onChange={handleChange} 
+                  required 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Analyst/Designer Section */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-4 pb-2 border-b">
+              <User className="h-4 w-4 text-purple-600" />
+              <h3 className="font-semibold text-gray-700">Analyst/Designer</h3>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Analyst/Designer Name *</label>
+              <input 
+                type="text" 
+                name="analystName" 
+                placeholder="Enter analyst or designer name" 
+                value={formData.analystName || ''} 
+                onChange={handleChange} 
+                required 
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Company Information Section */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-4 pb-2 border-b">
+              <Building2 className="h-4 w-4 text-blue-600" />
+              <h3 className="font-semibold text-gray-700">Company Information</h3>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+                <input 
+                  type="text" 
+                  name="company" 
+                  placeholder="Enter company name" 
+                  value={formData.company} 
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                <input 
+                  type="text" 
+                  name="address" 
+                  placeholder="Enter company address" 
+                  value={formData.address} 
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <input 
+                  type="text" 
+                  name="phone" 
+                  placeholder="Enter phone number" 
+                  value={formData.phone} 
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-3 pt-4 border-t">
+            <button 
+              type="button"
+              onClick={onClose} 
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Submit
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

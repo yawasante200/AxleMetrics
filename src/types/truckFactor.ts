@@ -7,6 +7,11 @@ export interface CompanyDetails {
   date: string;
   project: string;
   name: string;
+  // New fields for project metadata
+  projectLocation?: string;
+  projectLength?: number;
+  projectLengthUnit?: 'km' | 'miles' | 'feet' | 'meters';
+  analystName?: string;
 }
 
 export interface Result {

@@ -1,5 +1,5 @@
 import { VehicleEsalData } from '../DesignEsalTable';
-import { FormValues, GrowthRate, GrowthRateRange, TruckFactorCSVRow } from './types';
+import { FormValues, GrowthRate, GrowthRateRange, TruckFactorCSVRow, ESALRoundingOption, AADTValidationResult, YearlyESALData } from './types';
 import * as FileSaver from 'file-saver';
 
 export const calculateGrowthFactor = (growthRate: number, years: number): number => {
@@ -159,3 +159,91 @@ export const convertTruckFactorDataToVehicleEsalData = (data: TruckFactorCSVRow[
     };
   });
 };
+
+/**
+ * Round ESAL value to the specified precision option
+ */
+export const roundESAL = (value: number, option: ESALRoundingOption): number => {
+  if (!isFinite(value) || isNaN(value)) return 0;
+  return Math.round(value / option) * option;
+};
+
+/**
+ * Format rounded ESAL value with appropriate suffix
+ */
+export const formatRoundedESAL = (value: number, option: ESALRoundingOption): string => {
+  const rounded = roundESAL(value, option);
+  if (rounded >= 1000000000) {
+    return `${(rounded / 1000000000).toFixed(1)} billion`;
+  }
+  if (rounded >= 1000000) {
+    return `${(rounded / 1000000).toFixed(1)} million`;
+  }
+  return rounded.toLocaleString();
+};
+
+/**
+ * Validate that AADT percentages sum to 100%
+ */
+export const validateAADTPercentages = (percentages: number[]): AADTValidationResult => {
+  const total = percentages.reduce((sum, p) => sum + (p || 0), 0);
+  const isValid = Math.abs(total - 100) < 0.01; // Allow small floating point tolerance
+  
+  return {
+    isValid,
+    totalPercentage: total,
+    message: isValid 
+      ? undefined 
+      : `AADT percentages sum to ${total.toFixed(1)}%, not 100%`
+  };
+};
+
+/**
+ * Calculate yearly ESAL data for chart visualization
+ * Returns array of yearly ESAL values for each year in the design period
+ */
+export const calculateYearlyESALData = (
+  vehicleData: VehicleEsalData[],
+  formValues: FormValues
+): YearlyESALData[] => {
+  const baseYear = formValues.baseYear || new Date().getFullYear();
+  const designPeriod = formValues.designPeriod;
+  const directionFactor = formValues.directionDistribution / 100;
+  const laneFactor = formValues.laneDistribution / 100;
+  
+  const yearlyData: YearlyESALData[] = [];
+  let cumulativeESAL = 0;
+  
+  for (let i = 0; i < designPeriod; i++) {
+    const year = baseYear + i;
+    let yearlyESAL = 0;
+    
+    // Calculate ESAL for each vehicle class for this year
+    vehicleData.forEach(vehicle => {
+      const baseAADT = formValues.aadt * (vehicle.percentOfAadt / 100);
+      const growthRate = Array.isArray(vehicle.growthRate) 
+        ? (vehicle.growthRate[i] || vehicle.growthRate[vehicle.growthRate.length - 1] || 0)
+        : vehicle.growthRate;
+      
+      // AADT grows each year
+      const yearAADT = baseAADT * Math.pow(1 + growthRate / 100, i);
+      const dirAADT = yearAADT * directionFactor;
+      const laneAADT = dirAADT * laneFactor;
+      
+      // Annual traffic * 365 days * truck factor
+      const vehicleYearlyESAL = laneAADT * 365 * vehicle.truckFactor;
+      yearlyESAL += vehicleYearlyESAL;
+    });
+    
+    cumulativeESAL += yearlyESAL;
+    
+    yearlyData.push({
+      year,
+      yearlyESAL: Math.round(yearlyESAL),
+      cumulativeESAL: Math.round(cumulativeESAL)
+    });
+  }
+  
+  return yearlyData;
+};
+

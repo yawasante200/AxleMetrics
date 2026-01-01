@@ -1,6 +1,3 @@
-// This is VehicleIllustrations.tsx
-// It contains SVG components for vehicle illustrations
-// Each vehicle is an SVG component for optimal rendering in PDFs
 import React from 'react';
 
 // Simple, clean line-drawing style vehicle illustrations
@@ -342,36 +339,101 @@ export const vehicleClassifications: VehicleClassification[] = [
   { name: '10-axle trailers', code: '10T', axles: 10, icon: Trailer10AxleIcon, description: 'Tractor + trailer' },
 ];
 
-// Vehicle Classification Table Component for PDF
+// Vehicle Classification Table Component for PDF with Smart Pagination
 interface VehicleClassificationTableProps {
   className?: string;
 }
 
-export const VehicleClassificationTable: React.FC<VehicleClassificationTableProps> = ({ className = '' }) => (
-  <div className={`${className}`} style={{ width: '100%' }}>
-    <h3 className="text-lg font-bold text-gray-800 uppercase tracking-wider mb-4 pb-3 border-b-2 border-gray-400 text-center">
-      Vehicle Classification Reference
-    </h3>
-    <div className="space-y-3">
-      {vehicleClassifications.map((vehicle, index) => (
+const VehicleClassificationTable: React.FC<VehicleClassificationTableProps> = ({ className = '' }) => {
+  // Split vehicles into chunks that fit on a page
+  // First page: 11 vehicles (Passenger Car through 5-axle trailers)
+  // Second page: 5 vehicles (6-axle through 10-axle trailers)
+  const pages: VehicleClassification[][] = [
+    vehicleClassifications.slice(0, 11), // First 11 vehicles
+    vehicleClassifications.slice(11)      // Remaining 5 vehicles
+  ];
+
+  return (
+    <>
+      {pages.map((pageVehicles, pageIndex) => (
         <div 
-          key={index} 
-          className="flex items-center gap-4 p-3 bg-white rounded-lg border border-gray-300 shadow-sm"
-          style={{ width: '100%' }}
+          key={pageIndex}
+          className={`${className} ${pageIndex > 0 ? 'page-break' : ''}`}
+          style={{ 
+            width: '100%',
+            pageBreakBefore: pageIndex > 0 ? 'always' : 'auto',
+            minHeight: '240mm',
+            display: 'flex',
+            flexDirection: 'column',
+            position: 'relative'
+          }}
         >
-          <div className="flex-shrink-0" style={{ width: '120px' }}>
-            <vehicle.icon className="text-gray-700" size={100} />
+          <div style={{ flex: '1' }}>
+            {pageIndex === 0 && (
+              <h3 className="text-base font-bold text-gray-800 uppercase tracking-wider mb-3 pb-2 border-b-2 border-gray-400 text-center">
+                Vehicle Classification Reference
+              </h3>
+            )}
+            <div className="space-y-2.5">
+              {pageVehicles.map((vehicle, index) => (
+                <div 
+                  key={`${pageIndex}-${index}`}
+                  className="flex items-center gap-3 p-2.5 bg-white rounded-lg border border-gray-300 shadow-sm"
+                  style={{ 
+                    width: '100%', 
+                    minHeight: '60px',
+                    // Prevent row from breaking across pages
+                    breakInside: 'avoid',
+                    pageBreakInside: 'avoid'
+                  } as React.CSSProperties}
+                >
+                  <div className="flex-shrink-0" style={{ width: '110px' }}>
+                    <vehicle.icon className="text-gray-700" size={90} />
+                  </div>
+                  <div 
+                    className="flex-1"
+                    style={{
+                      // Proper word wrapping
+                      wordBreak: 'break-word',
+                      overflowWrap: 'break-word',
+                      hyphens: 'auto'
+                    }}
+                  >
+                    <p className="text-sm font-bold text-gray-900">{vehicle.name}</p>
+                    <p className="text-xs text-gray-600">{vehicle.code} • {vehicle.axles} axles</p>
+                    <p className="text-xs text-gray-500">{vehicle.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="flex-1">
-            <p className="text-base font-bold text-gray-900">{vehicle.name}</p>
-            <p className="text-sm text-gray-600">{vehicle.code} • {vehicle.axles} axles</p>
-            <p className="text-sm text-gray-500">{vehicle.description}</p>
+          
+          {/* Footer fixed at bottom of each page */}
+          <div 
+            className="mt-auto pt-6 border-t border-gray-300"
+            style={{ 
+              position: 'absolute',
+              bottom: '0',
+              left: '0',
+              right: '0',
+              paddingBottom: '18mm'
+            }}
+          >
+            <div className="text-center space-y-1">
+              <p className="text-xs text-gray-600 font-medium">
+                © 2026 AxleMetrics 
+              </p>
+              <p className="text-xs text-gray-500">
+                This report is generated based on AASHTO methods
+              </p>
+            </div>
           </div>
         </div>
       ))}
-    </div>
-  </div>
-);
+    </>
+  );
+};
 
+export { VehicleClassificationTable };
 export default VehicleClassificationTable;
-
+  
