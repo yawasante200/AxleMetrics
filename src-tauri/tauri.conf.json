@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "axelmetrics",
+  "productName": "axlemetrics",
   "version": "0.1.0",
-  "identifier": "com.axelmetrics.axelmetrics",
+  "identifier": "com.axlemetrics.axlemetrics",
   "build": {
-    "beforeDevCommand": "bun run dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
   "app": {
