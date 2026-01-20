@@ -1,16 +1,18 @@
-// This is flexibleSimplifiedPdfGenerator.ts file.
 import React from 'react'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import { Result, CompanyDetails } from '../types/truckFactor'
 import { ESALConfig } from '../types/config'
+import { ReportMetadata } from '../components/design-esal/types'
 import { createRoot } from 'react-dom/client'
 import PDFTemplate from '../components/PDFTemplate'
 
 export const generateFlexibleSimplifiedPDF = async (
   data: Result[],
   formData: CompanyDetails,
-  config: ESALConfig
+  config: ESALConfig,
+  reportMetadata?: ReportMetadata,
+  aadtTotalPercentage?: number
 ): Promise<void> => {
   if (!data || data.length === 0) {
     alert('No data available to generate PDF.')
@@ -33,10 +35,12 @@ export const generateFlexibleSimplifiedPDF = async (
           results: data,
           config: config,
           pavementType: 'flexible',
-          esalType: 'simplified'
+          esalType: 'simplified',
+          reportMetadata: reportMetadata,
+          aadtTotalPercentage: aadtTotalPercentage
         })
       )
-      setTimeout(resolve, 1000)
+      setTimeout(resolve, 800)
     })
 
     const pdf = new jsPDF('p', 'mm', 'a4')
@@ -45,45 +49,45 @@ export const generateFlexibleSimplifiedPDF = async (
 
     await new Promise(resolve => setTimeout(resolve, 200))
 
-    // Capture main content
+    // Capture main content - OPTIMIZED
     const contentElement = container.querySelector('#pdf-content') as HTMLElement
     if (contentElement) {
       const canvas = await html2canvas(contentElement, {
-        scale: 2,
+        scale: 1.5,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff'
       })
 
-      const imgData = canvas.toDataURL('image/png')
+      const imgData = canvas.toDataURL('image/jpeg', 0.85)
       const imgWidth = pageWidth
       const imgHeight = (canvas.height * pageWidth) / canvas.width
 
       let heightLeft = imgHeight
       let position = 0
 
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
       heightLeft -= pageHeight
 
       while (heightLeft > 0) {
         position = heightLeft - imgHeight
         pdf.addPage()
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
         heightLeft -= pageHeight
       }
     }
 
-    // Capture vehicles
+    // Capture vehicles - OPTIMIZED
     const vehiclesElement = container.querySelector('#pdf-vehicles') as HTMLElement
     if (vehiclesElement) {
       const canvas = await html2canvas(vehiclesElement, {
-        scale: 2,
+        scale: 1.5,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff'
       })
 
-      const imgData = canvas.toDataURL('image/png')
+      const imgData = canvas.toDataURL('image/jpeg', 0.85)
       const imgWidth = pageWidth
       const imgHeight = (canvas.height * pageWidth) / canvas.width
 
@@ -91,19 +95,19 @@ export const generateFlexibleSimplifiedPDF = async (
       let position = 0
 
       pdf.addPage()
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
       heightLeft -= pageHeight
 
       while (heightLeft > 0) {
         position = heightLeft - imgHeight
         pdf.addPage()
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
         heightLeft -= pageHeight
       }
     }
 
     const filename =
-      'Flexible-Simplified-AASHO-ESAL-Report_' +
+      'Flexible-Simplified-Highway-Design-Report_' +
       new Date().toISOString().split('T')[0] +
       '.pdf'
 

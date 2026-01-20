@@ -2,6 +2,7 @@ import React from 'react';
 import { Result, CompanyDetails } from '../types/truckFactor';
 import { ESALConfig } from '../types/config';
 import { VehicleClassificationTable } from './VehicleIllustrations';
+import { ReportMetadata } from './design-esal/types';
 
 interface PDFTemplateProps {
   formData: CompanyDetails;
@@ -9,6 +10,8 @@ interface PDFTemplateProps {
   config: ESALConfig;
   pavementType: 'flexible' | 'rigid';
   esalType: 'simplified' | 'AASHTO';
+  reportMetadata?: ReportMetadata;
+  aadtTotalPercentage?: number;
 }
 
 const PDFTemplate: React.FC<PDFTemplateProps> = ({
@@ -16,7 +19,9 @@ const PDFTemplate: React.FC<PDFTemplateProps> = ({
   results,
   config,
   pavementType,
-  esalType
+  esalType,
+  reportMetadata,
+  aadtTotalPercentage = 100
 }) => {
   const getReportTitle = () => {
     const pavementText = pavementType === 'flexible' ? 'Flexible' : 'Rigid';
@@ -57,6 +62,7 @@ const PDFTemplate: React.FC<PDFTemplateProps> = ({
   };
 
   const parameters = getParameters();
+  const showAadtWarning = Math.abs(aadtTotalPercentage - 100) >= 0.01;
 
   return (
     <div className="bg-white mx-auto print:shadow-none">
@@ -87,14 +93,56 @@ const PDFTemplate: React.FC<PDFTemplateProps> = ({
         </div>
 
         {/* Report Title */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-8">
           <h2 className="text-2xl font-bold text-gray-900 uppercase tracking-wide mb-1">
-            {getReportTitle()}
+            Highway Pavement Design Report
           </h2>
           <h3 className="text-base font-normal text-gray-700">
-            Calculation Report
+            {getReportTitle()}
           </h3>
         </div>
+
+        {/* AADT Validation Warning */}
+        {showAadtWarning && (
+          <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 mb-6">
+            <div className="flex items-start gap-2">
+              <span className="text-amber-600 text-lg flex-shrink-0">⚠️</span>
+              <div>
+                <p className="text-sm font-medium text-amber-800">
+                  Warning: AADT percentages do not sum to 100%
+                </p>
+                <p className="text-xs text-amber-700 mt-1">
+                  Current total: {aadtTotalPercentage.toFixed(1)}%. Please verify your traffic distribution data.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Project Metadata (if provided) */}
+        {reportMetadata && (
+          <div className="bg-blue-50 rounded-lg p-4 mb-6 border border-blue-200">
+            <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3">
+              Project Information
+            </h4>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <p className="text-xs text-gray-600 uppercase tracking-wide font-semibold">Project Location</p>
+                <p className="text-sm font-medium text-gray-900">{reportMetadata.projectLocation || 'Not specified'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 uppercase tracking-wide font-semibold">Project Length</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {reportMetadata.projectLength ? `${reportMetadata.projectLength} ${reportMetadata.projectLengthUnit}` : 'Not specified'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 uppercase tracking-wide font-semibold">Analyst/Designer</p>
+                <p className="text-sm font-medium text-gray-900">{reportMetadata.analystName || 'Not specified'}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Company & Project Info - Side by side */}
         <div className="grid grid-cols-2 gap-6 mb-10">
@@ -184,6 +232,7 @@ const PDFTemplate: React.FC<PDFTemplateProps> = ({
                   <tr 
                     key={index}
                     className={`border-t border-gray-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+                    style={{ breakInside: 'avoid' } as React.CSSProperties}
                   >
                     <td className="py-3 px-5 text-sm font-medium text-gray-900">
                       {result.axleType}
@@ -202,10 +251,10 @@ const PDFTemplate: React.FC<PDFTemplateProps> = ({
         <div className="mt-12 pt-6 border-t border-gray-300">
           <div className="text-center space-y-0.5">
             <p className="text-xs text-gray-600 font-medium">
-              © {new Date().getFullYear()} AxleMetrics - Professional Pavement Analysis Solutions
+              © 2026 AxleMetrics - Professional Pavement Analysis Solutions
             </p>
             <p className="text-xs text-gray-500">
-              This report is generated using AASHTO standards and guidelines
+              This report is generated based on AASHTO methods
             </p>
           </div>
         </div>
@@ -237,10 +286,10 @@ const PDFTemplate: React.FC<PDFTemplateProps> = ({
         <div className="mt-auto pt-6 border-t border-gray-300" style={{ marginTop: '30mm' }}>
           <div className="text-center space-y-0.5">
             <p className="text-xs text-gray-600 font-medium">
-              © {new Date().getFullYear()} AxleMetrics - Professional Pavement Analysis Solutions
+              © 2026 AxleMetrics - Professional Pavement Analysis Solutions
             </p>
             <p className="text-xs text-gray-500">
-              This report is generated using AASHTO standards and guidelines
+              This report is generated based on AASHTO methods
             </p>
           </div>
         </div>

@@ -2,5 +2,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
+<<<<<<< HEAD
     axlemetrics_lib::run()
+=======
+    axelmetrics_lib::run()
+>>>>>>> main
 }

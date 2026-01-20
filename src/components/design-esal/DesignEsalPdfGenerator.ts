@@ -3,7 +3,7 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { createRoot } from 'react-dom/client';
 import { VehicleEsalData } from '../DesignEsalTable';
-import { FormValues } from './types';
+import { FormValues, ReportMetadata, ESALRoundingOption } from './types';
 import { CompanyDetails } from '../../types/truckFactor';
 import DesignEsalPDFTemplate from './DesignEsalPDFTemplate';
 
@@ -13,14 +13,32 @@ interface GeneratePDFProps {
   totalDesignEsals: number;
   growthRateType: string;
   companyDetails?: CompanyDetails;
+  reportMetadata?: ReportMetadata;
+  esalRoundingOption?: ESALRoundingOption;
 }
+
+// Helper function to wait for images to load
+const waitForImagesToLoad = (container: HTMLElement): Promise<void> => {
+  const images = container.getElementsByTagName('img');
+  const promises = Array.from(images).map(img => {
+    if (img.complete) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      img.onload = () => resolve();
+      img.onerror = () => resolve();
+      setTimeout(() => resolve(), 3000);
+    });
+  });
+  return Promise.all(promises).then(() => {});
+};
 
 export const generateDesignEsalPDF = async ({
   vehicleData,
   formValues,
   totalDesignEsals,
   growthRateType: _growthRateType,
-  companyDetails
+  companyDetails,
+  reportMetadata,
+  esalRoundingOption = ESALRoundingOption.NEAREST_1000
 }: GeneratePDFProps): Promise<void> => {
   if (!vehicleData || vehicleData.length === 0) {
     alert('No data available to generate PDF.');
@@ -28,90 +46,135 @@ export const generateDesignEsalPDF = async ({
   }
 
   try {
-    // Create off-screen container for rendering
     const container = document.createElement('div');
     container.style.position = 'absolute';
     container.style.left = '-9999px';
+    container.style.top = '0';
     container.style.width = '210mm';
     document.body.appendChild(container);
 
     const root = createRoot(container);
 
-    // Render the template
     await new Promise<void>((resolve) => {
       root.render(
         React.createElement(DesignEsalPDFTemplate, {
           vehicleData,
           formValues,
           totalDesignEsals,
-          companyDetails
+          companyDetails,
+          reportMetadata,
+          esalRoundingOption
         })
       );
-      // Wait for render to complete
-      setTimeout(resolve, 200);
+      setTimeout(resolve, 500);
     });
 
-    // Capture as canvas
-    const canvas = await html2canvas(container.firstChild as HTMLElement, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: '#ffffff',
-      windowWidth: 794, // A4 width in pixels at 96dpi
-    });
+    await waitForImagesToLoad(container);
+    await new Promise(resolve => setTimeout(resolve, 200));
 
-    // Create PDF
+    const content = container.firstChild as HTMLElement;
+    
+    // Find all page break elements
+    const pageElements = content.querySelectorAll('[style*="pageBreakBefore"]');
+    const allPages: HTMLElement[] = [];
+    
+    if (pageElements.length > 0) {
+      const firstPageContent = document.createElement('div');
+      firstPageContent.style.width = '210mm';
+      firstPageContent.style.background = '#ffffff';
+      
+      const children = Array.from(content.children);
+      const firstBreakIndex = children.indexOf(pageElements[0] as Element);
+      
+      for (let i = 0; i < firstBreakIndex; i++) {
+        firstPageContent.appendChild(children[i].cloneNode(true));
+      }
+      allPages.push(firstPageContent);
+      
+      pageElements.forEach((pageElement) => {
+        const pageContent = document.createElement('div');
+        pageContent.style.width = '210mm';
+        pageContent.style.background = '#ffffff';
+        pageContent.appendChild(pageElement.cloneNode(true));
+        allPages.push(pageContent);
+      });
+    } else {
+      const singlePage = document.createElement('div');
+      singlePage.style.width = '210mm';
+      singlePage.style.background = '#ffffff';
+      singlePage.appendChild(content.cloneNode(true));
+      allPages.push(singlePage);
+    }
+
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
-    
-    const imgWidth = canvas.width;
-    const imgHeight = canvas.height;
-    
-    // Calculate scaling to fit width
-    const ratio = pdfWidth / imgWidth;
-    const scaledHeight = imgHeight * ratio;
-    
-    // Handle multi-page content
-    let position = 0;
-    let remainingHeight = scaledHeight;
-    
-    while (remainingHeight > 0) {
-      // Create a canvas for the current page slice
-      const pageCanvas = document.createElement('canvas');
-      pageCanvas.width = canvas.width;
-      pageCanvas.height = Math.min(canvas.height - (position / ratio), pdfHeight / ratio);
+
+    for (let pageIndex = 0; pageIndex < allPages.length; pageIndex++) {
+      const pageContent = allPages[pageIndex];
+      document.body.appendChild(pageContent);
       
-      const ctx = pageCanvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(
-          canvas,
-          0, position / ratio,                          // Source X, Y
-          canvas.width, pageCanvas.height,              // Source Width, Height
-          0, 0,                                         // Destination X, Y
-          canvas.width, pageCanvas.height               // Destination Width, Height
-        );
-        
-        const pageImgData = pageCanvas.toDataURL('image/png');
-        
-        if (position > 0) {
+      await new Promise(resolve => setTimeout(resolve, 150));
+
+      // OPTIMIZED: reduced scale, JPEG format
+      const canvas = await html2canvas(pageContent, {
+        scale: 1.5, // Reduced from 3
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        windowWidth: 794,
+        removeContainer: false,
+        imageTimeout: 10000,
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.85); // JPEG 85%
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      let position = 0;
+      let isFirstSlice = true;
+      
+      while (position < imgHeight) {
+        if (!isFirstSlice || pageIndex > 0) {
           pdf.addPage();
         }
         
-        pdf.addImage(pageImgData, 'PNG', 0, 0, pdfWidth, pageCanvas.height * ratio);
+        const remainingHeight = imgHeight - position;
+        const sliceHeight = Math.min(pdfHeight, remainingHeight);
+        
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = (sliceHeight / imgHeight) * canvas.height;
+        
+        const ctx = sliceCanvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(
+            canvas,
+            0,
+            (position / imgHeight) * canvas.height,
+            canvas.width,
+            sliceCanvas.height,
+            0,
+            0,
+            sliceCanvas.width,
+            sliceCanvas.height
+          );
+          
+          const sliceImgData = sliceCanvas.toDataURL('image/jpeg', 0.85);
+          pdf.addImage(sliceImgData, 'JPEG', 0, 0, pdfWidth, sliceHeight);
+        }
+        
+        position += pdfHeight;
+        isFirstSlice = false;
       }
-      
-      position += pdfHeight;
-      remainingHeight -= pdfHeight;
+
+      document.body.removeChild(pageContent);
     }
 
-    // Generate filename
-    const filename = `Design-ESAL-Report_${formValues.designPeriod}-Year_${new Date().toISOString().split('T')[0]}.pdf`;
+    const filename = `Highway-Pavement-Design-Report_${formValues.designPeriod}-Year_${new Date().toISOString().split('T')[0]}.pdf`;
 
-    // Save PDF
     pdf.save(filename);
 
-    // Cleanup
     root.unmount();
     document.body.removeChild(container);
 
@@ -119,5 +182,8 @@ export const generateDesignEsalPDF = async ({
     console.error('PDF Generation Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     alert('Failed to generate PDF: ' + errorMessage);
+    
+    const containers = document.querySelectorAll('[style*="left: -9999px"]');
+    containers.forEach(c => c.remove());
   }
 };
