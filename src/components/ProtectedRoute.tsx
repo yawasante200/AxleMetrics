@@ -6,13 +6,20 @@ interface ProtectedRouteProps {
     children: React.ReactNode;
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-    const { isAuthenticated } = useAuth();
+export function ProtectedRoute({ children }: ProtectedRouteProps) {
+    const { isAuthenticated, checkLicense } = useAuth();
     const location = useLocation();
+    const isLicensed = checkLicense();
 
+    // If not authenticated, redirect to login
     if (!isAuthenticated) {
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
+    // If authenticated but not licensed, redirect to license page
+    if (!isLicensed) {
+        return <Navigate to="/license" state={{ from: location }} replace />;
+    }
+
     return <>{children}</>;
-};
+}

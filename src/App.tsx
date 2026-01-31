@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { MainCalculator } from './components/MainCalculator';
 import TruckFactor from './components/TruckFactor';
@@ -12,6 +12,8 @@ import LoginPage from './components/auth/LoginPage';
 import SignupFlowPage from './components/auth/SignupFlowPage';
 import ForgotPasswordPage from './components/auth/ForgotPasswordPage';
 import OTPPage from './components/auth/OTPPage';
+import ResetPasswordPage from './components/auth/ResetPasswordPage';
+import LicensePage from './components/auth/LicensePage';
 
 function AppContent() {
   const [selectedOption, setSelectedOption] = useState<'ealf' | 'truckFactor' | 'designEsals' | null>(null);
@@ -19,7 +21,7 @@ function AppContent() {
   const [calculationType, setCalculationType] = useState<'simplified' | 'aasho' | null>(null);
 
   const location = useLocation();
-  const isAuthRoute = ['/login', '/signup', '/forgot-password', '/verify-otp'].includes(location.pathname);
+  const isAuthRoute = ['/login', '/signup', '/forgot-password', '/verify-otp', '/reset-password', '/license'].includes(location.pathname);
 
   const handleReset = () => {
     setSelectedOption(null);
@@ -52,6 +54,8 @@ function AppContent() {
         <Route path="/signup" element={<SignupFlowPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/verify-otp" element={<OTPPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/license" element={<LicensePage />} />
 
         {/* Protected Main App Routes */}
         <Route

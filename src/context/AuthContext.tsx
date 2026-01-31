@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface User {
     id: string;
@@ -9,18 +9,36 @@ interface User {
 
 interface AuthContextType {
     isAuthenticated: boolean;
+    isLicensed: boolean;
     user: User | null;
     login: (user: User) => void;
     logout: () => void;
+    checkLicense: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_STORAGE_KEY = 'axlemetrics_auth';
+const LICENSE_STORAGE_KEY = 'axlemetrics_license';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isLicensed, setIsLicensed] = useState(false);
+
+    // Check license status from localStorage
+    const checkLicense = (): boolean => {
+        const licenseData = localStorage.getItem(LICENSE_STORAGE_KEY);
+        if (licenseData) {
+            try {
+                const parsed = JSON.parse(licenseData);
+                return parsed.isValid === true;
+            } catch {
+                return false;
+            }
+        }
+        return false;
+    };
 
     // Load auth state from localStorage on mount
     useEffect(() => {
@@ -34,6 +52,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 localStorage.removeItem(AUTH_STORAGE_KEY);
             }
         }
+
+        // Check license status
+        setIsLicensed(checkLicense());
     }, []);
 
     const login = (userData: User) => {
@@ -49,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
+        <AuthContext.Provider value={{ isAuthenticated, isLicensed, user, login, logout, checkLicense }}>
             {children}
         </AuthContext.Provider>
     );
