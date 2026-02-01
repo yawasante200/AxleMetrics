@@ -10,29 +10,38 @@ interface User {
 interface AuthContextType {
     isAuthenticated: boolean;
     user: User | null;
+    isLicensed: boolean;
     login: (user: User) => void;
     logout: () => void;
+    activateLicense: (key: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_STORAGE_KEY = 'axlemetrics_auth';
+const LICENSE_STORAGE_KEY = 'axlemetrics_license';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isLicensed, setIsLicensed] = useState(false);
 
-    // Load auth state from localStorage on mount
+    // Load auth and license state from localStorage on mount
     useEffect(() => {
-        const stored = localStorage.getItem(AUTH_STORAGE_KEY);
-        if (stored) {
+        const storedAuth = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (storedAuth) {
             try {
-                const parsed = JSON.parse(stored);
+                const parsed = JSON.parse(storedAuth);
                 setUser(parsed.user);
                 setIsAuthenticated(true);
             } catch (e) {
                 localStorage.removeItem(AUTH_STORAGE_KEY);
             }
+        }
+
+        const storedLicense = localStorage.getItem(LICENSE_STORAGE_KEY);
+        if (storedLicense === 'true') {
+            setIsLicensed(true);
         }
     }, []);
 
@@ -48,8 +57,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem(AUTH_STORAGE_KEY);
     };
 
+    const activateLicense = (key: string): boolean => {
+        // Dummy validation - just check if it's not empty
+        if (key && key.trim().length > 0) {
+            setIsLicensed(true);
+            localStorage.setItem(LICENSE_STORAGE_KEY, 'true');
+            return true;
+        }
+        return false;
+    };
+
     return (
-        <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
+        <AuthContext.Provider value={{ isAuthenticated, user, isLicensed, login, logout, activateLicense }}>
             {children}
         </AuthContext.Provider>
     );

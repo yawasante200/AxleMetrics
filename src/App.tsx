@@ -12,6 +12,8 @@ import LoginPage from './components/auth/LoginPage';
 import SignupFlowPage from './components/auth/SignupFlowPage';
 import ForgotPasswordPage from './components/auth/ForgotPasswordPage';
 import OTPPage from './components/auth/OTPPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
+import LicensePage from './pages/LicensePage';
 
 function AppContent() {
   const [selectedOption, setSelectedOption] = useState<'ealf' | 'truckFactor' | 'designEsals' | null>(null);
@@ -71,6 +73,17 @@ function AppContent() {
         <Route path="/signup" element={<SignupFlowPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/verify-otp" element={<OTPPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+        {/* Protected License Page */}
+        <Route
+          path="/license"
+          element={
+            <ProtectedRoute>
+              <LicensePage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Protected Main App Routes */}
         <Route
@@ -81,20 +94,20 @@ function AppContent() {
                 <Dashboard onSelectFeature={handleSelectFeature} />
               ) : selectedOption === 'truckFactor' ? (
                 <div className="max-w-4xl mx-auto py-8 px-4">
-                  <button 
-                    onClick={handleBackToDashboard} 
+                  <button
+                    onClick={handleBackToDashboard}
                     className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
                   >
                     <ChevronLeft className="w-5 h-5" />
                     <span className="font-medium">Back to Dashboard</span>
                   </button>
-                  <TruckFactor 
+                  <TruckFactor
                     onProceedToDesignEsal={handleProceedToDesignEsal}
                   />
                 </div>
               ) : selectedOption === 'designEsals' ? (
                 <div className="max-w-4xl mx-auto py-8 px-4">
-                  <button 
+                  <button
                     onClick={truckFactorResults ? handleBackToTruckFactor : handleBackToDashboard}
                     className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
                   >

@@ -28,6 +28,21 @@ export const generateFlexibleSimplifiedPDF = async (
 
     const root = createRoot(container)
 
+    // Pagination Logic
+    const resultsChunks: Result[][] = [];
+    const remainingResults = [...data];
+
+    // Page 1 Estimate: Heavy Metadata
+    const ITEMS_PER_PAGE_1 = 3;
+    const ITEMS_PER_PAGE_N = 16;
+
+    if (remainingResults.length > 0) {
+      resultsChunks.push(remainingResults.splice(0, ITEMS_PER_PAGE_1));
+    }
+    while (remainingResults.length > 0) {
+      resultsChunks.push(remainingResults.splice(0, ITEMS_PER_PAGE_N));
+    }
+
     await new Promise<void>((resolve) => {
       root.render(
         React.createElement(PDFTemplate, {
@@ -37,7 +52,8 @@ export const generateFlexibleSimplifiedPDF = async (
           pavementType: 'flexible',
           esalType: 'simplified',
           reportMetadata: reportMetadata,
-          aadtTotalPercentage: aadtTotalPercentage
+          aadtTotalPercentage: aadtTotalPercentage,
+          resultsChunks
         })
       )
       setTimeout(resolve, 800)
@@ -45,65 +61,49 @@ export const generateFlexibleSimplifiedPDF = async (
 
     const pdf = new jsPDF('p', 'mm', 'a4')
     const pageWidth = pdf.internal.pageSize.getWidth()
-    const pageHeight = pdf.internal.pageSize.getHeight()
 
     await new Promise(resolve => setTimeout(resolve, 200))
 
-    // Capture main content - OPTIMIZED
-    const contentElement = container.querySelector('#pdf-content') as HTMLElement
-    if (contentElement) {
-      const canvas = await html2canvas(contentElement, {
+    // Capture Report Pages
+    const pageElements = container.querySelectorAll('.pdf-content-page');
+
+    for (let i = 0; i < pageElements.length; i++) {
+      if (i > 0) pdf.addPage();
+
+      const canvas = await html2canvas(pageElements[i] as HTMLElement, {
         scale: 1.5,
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff'
-      })
+      });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.85)
-      const imgWidth = pageWidth
-      const imgHeight = (canvas.height * pageWidth) / canvas.width
+      const imgData = canvas.toDataURL('image/jpeg', 0.85);
+      const imgHeight = (canvas.height * pageWidth) / canvas.width;
 
-      let heightLeft = imgHeight
-      let position = 0
-
-      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
-      heightLeft -= pageHeight
-
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight
-        pdf.addPage()
-        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
-        heightLeft -= pageHeight
-      }
+      pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, imgHeight);
     }
 
-    // Capture vehicles - OPTIMIZED
+    // Capture vehicles (always separate)
     const vehiclesElement = container.querySelector('#pdf-vehicles') as HTMLElement
     if (vehiclesElement) {
+      // Detect if vehicle page is landscape
+      const isLandscape = vehiclesElement.getAttribute('data-orientation') === 'landscape';
+
       const canvas = await html2canvas(vehiclesElement, {
         scale: 1.5,
         useCORS: true,
         logging: false,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        windowWidth: isLandscape ? 1123 : 794
       })
 
       const imgData = canvas.toDataURL('image/jpeg', 0.85)
-      const imgWidth = pageWidth
-      const imgHeight = (canvas.height * pageWidth) / canvas.width
+      const pdfWidth = isLandscape ? 297 : pageWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width
 
-      let heightLeft = imgHeight
-      let position = 0
-
-      pdf.addPage()
-      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
-      heightLeft -= pageHeight
-
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight
-        pdf.addPage()
-        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
-        heightLeft -= pageHeight
-      }
+      // Add new page with appropriate orientation
+      pdf.addPage('a4', isLandscape ? 'landscape' : 'portrait')
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, imgHeight)
     }
 
     const filename =

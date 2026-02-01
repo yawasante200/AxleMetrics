@@ -7,11 +7,20 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, isLicensed } = useAuth();
     const location = useLocation();
 
     if (!isAuthenticated) {
         return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+
+    if (!isLicensed && location.pathname !== '/license') {
+        return <Navigate to="/license" replace />;
+    }
+
+    // If licensed and trying to access license page, redirect to dashboard
+    if (isLicensed && location.pathname === '/license') {
+        return <Navigate to="/" replace />;
     }
 
     return <>{children}</>;

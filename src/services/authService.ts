@@ -159,4 +159,20 @@ export const authService = {
             message: 'Please provide a valid email',
         };
     },
+    // Confirm password reset
+    async confirmResetPassword(password: string): Promise<{ success: boolean; message: string }> {
+        await delay(1000);
+
+        if (password && password.length >= 6) {
+            return {
+                success: true,
+                message: 'Password has been reset successfully',
+            };
+        }
+
+        return {
+            success: false,
+            message: 'Password must be at least 6 characters',
+        };
+    },
 };
