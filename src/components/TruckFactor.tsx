@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import Papa from 'papaparse';
-import { TruckFactorProps, Result, CompanyDetails } from '../types/truckFactor';
-import { CONSTANTS, calculateAASHTOEALF, calculateSimplifiedEALF, processConfiguration, interpretAxleType, getDefaultConfig } from '../utils/esalCalculations';
+import { Result, CompanyDetails } from '../types/truckFactor';
+import { calculateAASHTOEALF, calculateSimplifiedEALF, processConfiguration, interpretAxleType, getDefaultConfig, convertLoad } from '../utils/esalCalculations';
 import { generatePDF } from '../utils/pdfGenerator';
 import { getVehicleClassification } from '../utils/classificationUtils';
 import ResultsTable from './ResultsTable';
@@ -150,6 +150,7 @@ const TruckFactor: React.FC<TruckFactorComponentProps> = ({ onProceedToDesignEsa
 
           const processedResults: Result[] = [];
           const axleTypeGroups: { [key: string]: { esals: number[]; configs: string[] } } = {};
+          const inputDataUnit = formData?.inputDataUnit || 'kg';
 
           validRows.forEach((row) => {
             const typedRow = row as CSVRow;
@@ -163,21 +164,24 @@ const TruckFactor: React.FC<TruckFactorComponentProps> = ({ onProceedToDesignEsa
             const axleType = getVehicleClassification(code);
 
             const axleLoads = Array.from({ length: 10 }, (_, idx) => {
-              const loadInKg = parseFloat(typedRow[`Axle ${idx + 1}`]) || 0;
+              const rawLoad = parseFloat(typedRow[`Axle ${idx + 1}`]) || 0;
               if (esalType === 'simplified') {
-                if (config.unit === 'kN') {
-                  return loadInKg * CONSTANTS.KG_TO_KN;
-                } else if (config.unit === 'kips') {
-                  return loadInKg * CONSTANTS.KG_TO_KIP;
-                }
-                return loadInKg;
+                return convertLoad(rawLoad, inputDataUnit, config.unit);
               } else {
-                return loadInKg;
+                // AASHTO method: convert to kg for internal calculation
+                return convertLoad(rawLoad, inputDataUnit, 'kg');
               }
             });
 
-            const combinedLoads = processConfiguration(axleConfiguration, axleLoads, esalType || 'AASHTO');
+            const combinedLoads = processConfiguration(axleConfiguration, axleLoads);
             const axleTypes = interpretAxleType(axleConfiguration);
+
+            // Bug 3: Warn when only one non-zero axle load exists across multiple groups
+            const nonZeroLoads = combinedLoads.filter(load => load > 0);
+            if (nonZeroLoads.length === 1 && combinedLoads.length > 1) {
+              console.warn(`Vehicle ${typedRow['Truck Type']} appears to have only one non-zero axle load. This may indicate GVW was entered instead of individual axle weights.`);
+            }
+  
             let esal = 0;
 
             if (esalType === 'simplified') {
@@ -189,6 +193,7 @@ const TruckFactor: React.FC<TruckFactorComponentProps> = ({ onProceedToDesignEsa
                 esal += calculateAASHTOEALF(load, axleTypes[idx], pavementType || 'flexible', config);
               });
             }
+
 
             if (!axleTypeGroups[axleType]) {
               axleTypeGroups[axleType] = { esals: [], configs: [] };

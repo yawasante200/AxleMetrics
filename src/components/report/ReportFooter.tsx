@@ -1,32 +1,44 @@
 import React from 'react';
 
 interface ReportFooterProps {
+  reportDate?: string;
+  pageNumber?: number;
+  totalPages?: number;
   className?: string;
 }
 
 /**
- * Reusable footer component for all PDF reports
- * Displays copyright (© 2026 AxleMetrics) and AASHTO methodology note
+ * Reusable footer for all PDF report pages.
+ * Shows: Report Date (left) | © 2026 AxleMetrics (center) | Page X of Y (right)
  */
-const ReportFooter: React.FC<ReportFooterProps> = ({ className = '' }) => {
-  const currentDate = new Date().toLocaleDateString('en-US', {
+const ReportFooter: React.FC<ReportFooterProps> = ({
+  reportDate,
+  pageNumber,
+  totalPages,
+  className = ''
+}) => {
+  const displayDate = reportDate || new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
   });
 
   return (
-    <div className={`pt-6 border-t border-gray-300 ${className}`}>
-      <div className="text-center space-y-1">
-        <p className="text-xs text-gray-500">
-          Report Generated: {currentDate}
+    <div className={`pt-4 border-t border-gray-300 ${className}`}>
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] text-gray-500">
+          Report Date: {displayDate}
         </p>
-        <p className="text-xs text-gray-600 font-medium">
+        <p className="text-[10px] text-gray-600 font-medium">
           © 2026 AxleMetrics
         </p>
-        <p className="text-xs text-gray-500">
-          This report is generated based on AASHTO methods
-        </p>
+        {pageNumber && totalPages ? (
+          <p className="text-[10px] text-gray-500">
+            Page {pageNumber} of {totalPages}
+          </p>
+        ) : (
+          <p className="text-[10px] text-gray-500">&nbsp;</p>
+        )}
       </div>
     </div>
   );

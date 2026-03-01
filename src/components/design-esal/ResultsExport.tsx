@@ -23,7 +23,7 @@ const ResultsExport: React.FC<ResultsExportProps> = ({
   companyDetails,
   growthRateType
 }) => {
-  const [esalRoundingOption, setEsalRoundingOption] = useState<ESALRoundingOption>(ESALRoundingOption.NEAREST_1000);
+  const [esalRoundingOption, setEsalRoundingOption] = useState<ESALRoundingOption>(ESALRoundingOption.NONE);
 
   // Calculate AADT total percentage
   const aadtTotalPercentage = vehicleData.reduce((sum, v) => sum + v.percentOfAadt, 0);
@@ -96,6 +96,7 @@ const ResultsExport: React.FC<ResultsExportProps> = ({
               onChange={(e) => setEsalRoundingOption(Number(e.target.value) as ESALRoundingOption)}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             >
+              <option value={ESALRoundingOption.NONE}>No Rounding (Integer)</option>
               <option value={ESALRoundingOption.NEAREST_100}>Nearest 100</option>
               <option value={ESALRoundingOption.NEAREST_1000}>Nearest 1,000</option>
               <option value={ESALRoundingOption.NEAREST_MILLION}>Nearest 1,000,000</option>

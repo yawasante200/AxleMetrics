@@ -18,7 +18,8 @@ const FormModal: React.FC<FormModalProps> = ({ onSubmit, onClose }) => {
     projectLocation: '',
     projectLength: undefined,
     projectLengthUnit: 'km',
-    analystName: ''
+    analystName: '',
+    inputDataUnit: 'kg'
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -121,6 +122,22 @@ const FormModal: React.FC<FormModalProps> = ({ onSubmit, onClose }) => {
                   required 
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Axle Load Data Unit *</label>
+                <p className="text-xs text-gray-500 mb-1">What unit is your CSV axle load data provided in?</p>
+                <select
+                  name="inputDataUnit"
+                  value={formData.inputDataUnit || 'kg'}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="kg">Kilograms (kg)</option>
+                  <option value="kN">Kilonewtons (kN)</option>
+                  <option value="kips">Kips</option>
+                </select>
               </div>
             </div>
           </div>

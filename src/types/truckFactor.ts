@@ -12,6 +12,7 @@ export interface CompanyDetails {
   projectLength?: number;
   projectLengthUnit?: 'km' | 'miles' | 'feet' | 'meters';
   analystName?: string;
+  inputDataUnit?: 'kg' | 'kN' | 'kips';
 }
 
 export interface Result {

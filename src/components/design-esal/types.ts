@@ -71,6 +71,7 @@ export interface ReportMetadata {
 
 // ESAL rounding options
 export enum ESALRoundingOption {
+  NONE = 1,
   NEAREST_100 = 100,
   NEAREST_1000 = 1000,
   NEAREST_MILLION = 1000000,

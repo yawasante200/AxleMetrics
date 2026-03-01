@@ -1,11 +1,8 @@
 
 import { Result, CompanyDetails } from '../types/truckFactor';
 import { ESALConfig } from '../types/config';
-import { generateFlexibleOriginalPDF } from './flexibleOriginalPdfGenerator';
-import { generateRigidOriginalPDF } from './rigidOriginalPdfGenerator';
-import { generateFlexibleSimplifiedPDF } from './flexibleSimplifiedPdfGenerator';
+import { generateEsalFactorPDF } from './esalFactorPdfGenerator';
 
-// This is pdfGenerator.ts file.
 export const generatePDF = async (
   data: Result[],
   formData: CompanyDetails,
@@ -18,11 +15,5 @@ export const generatePDF = async (
     return;
   }
 
-  if (esalType === 'simplified') {
-    await generateFlexibleSimplifiedPDF(data, formData, config);
-  } else if (pavementType === 'flexible') {
-    await generateFlexibleOriginalPDF(data, formData, config);
-  } else {
-    await generateRigidOriginalPDF(data, formData, config);
-  }
+  await generateEsalFactorPDF(data, formData, config, pavementType, esalType);
 };

@@ -149,6 +149,22 @@ const ConfigurationModal: React.FC<ConfigurationModalProps> = ({
                   className="mt-1 w-full rounded-md border-gray-300 shadow-sm"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Quad Axle Load</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={config.standardAxleLoads.quad[unit]}
+                  onChange={(e) => setConfig({
+                    ...config,
+                    standardAxleLoads: {
+                      ...config.standardAxleLoads,
+                      quad: { ...config.standardAxleLoads.quad, [unit]: parseFloat(e.target.value) }
+                    }
+                  })}
+                  className="mt-1 w-full rounded-md border-gray-300 shadow-sm"
+                />
+              </div>
             </>
           )}
 

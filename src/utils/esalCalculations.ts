@@ -6,7 +6,11 @@ export const CONSTANTS = {
   KG_TO_KN: 0.00981,
 };
 
-export const interpretAxleType = (config: number[]): string[] => {
+export const interpretAxleType = (configStr: string | number[]): string[] => {
+  const config = typeof configStr === 'string' 
+    ? configStr.split(/[\s,-]+/).map(n => parseInt(n.trim())).filter(n => !isNaN(n))
+    : configStr;
+
   return config.map(group => {
     if (group === 1) return 'Single';
     if (group === 2) return 'Tandem';
@@ -16,16 +20,36 @@ export const interpretAxleType = (config: number[]): string[] => {
   });
 };
 
-export const calculateSimplifiedEALF = (axleLoad: number, axleType: string, config: ESALConfig): number => {
-  let standardLoad = config.standardAxleLoads.single[config.unit];
+export const convertLoad = (load: number, inputUnit: string, calcUnit: string): number => {
+  if (inputUnit === calcUnit) return load;
 
-  if (axleType === 'Tandem') {
-    standardLoad = config.standardAxleLoads.tandem[config.unit];
-  } else if (axleType === 'Tridem') {
-    standardLoad = config.standardAxleLoads.tridem[config.unit];
-  } else if (axleType === 'Quad') {
-    standardLoad = config.standardAxleLoads.quad[config.unit];
+  // First convert to kg as base
+  let inKg = load;
+  if (inputUnit === 'kips') inKg = load / CONSTANTS.KG_TO_KIP;
+  if (inputUnit === 'kN') inKg = load / CONSTANTS.KG_TO_KN;
+
+  // Then convert to target unit
+  if (calcUnit === 'kips') return inKg * CONSTANTS.KG_TO_KIP;
+  if (calcUnit === 'kN') return inKg * CONSTANTS.KG_TO_KN;
+  return inKg;
+};
+
+export const calculateSimplifiedEALF = (axleLoad: number, axleType: string, config: ESALConfig): number => {
+  const unit = config.unit ?? 'kg';
+  let standardLoad = config.standardAxleLoads.single[unit] ?? config.standardAxleLoads.single['kg'];
+
+  const normalizedType = axleType.trim().toLowerCase();
+
+  if (normalizedType === 'tandem') {
+    standardLoad = config.standardAxleLoads.tandem[unit] ?? config.standardAxleLoads.tandem['kg'];
+  } else if (normalizedType === 'tridem') {
+    standardLoad = config.standardAxleLoads.tridem[unit] ?? config.standardAxleLoads.tridem['kg'];
+  } else if (normalizedType === 'quad') {
+    standardLoad = config.standardAxleLoads.quad[unit] ?? config.standardAxleLoads.quad['kg'];
   }
+
+  console.log(`[ESAL Calculation] Type: ${axleType}, Load: ${axleLoad}, Selected Standard: ${standardLoad} ${unit}`);
+
   return Math.pow(axleLoad / standardLoad, config.loadEquivalencyExponent);
 };
 
@@ -38,7 +62,12 @@ export const calculateAASHTOEALF = (
 ): number => {
   // Force conversion to kips if not already in kips
   const loadInKips = lx * CONSTANTS.KG_TO_KIP;
-  const l2 = axleType === 'Single' ? 1 : axleType === 'Tandem' ? 2 : axleType === 'Tridem' ? 3 : axleType === 'Quad' ? 4 : 1;
+  const normalizedType = axleType.trim().toLowerCase();
+  const l2 = normalizedType === 'single' ? 1 
+           : normalizedType === 'tandem' ? 2 
+           : normalizedType === 'tridem' ? 3 
+           : normalizedType === 'quad' ? 4 
+           : 1;
 
   if (type === 'flexible') {
     // AASHTO 1993 Flexible Pavement Formula - CORRECTED
@@ -101,35 +130,8 @@ export const calculateAASHTOEALF = (
     return EALF;
   }
 };
-// Test with your example
-const testConfig = {
-  ptVal: 2.0,
-  dVal: 7.0,
-  snVal: 5,
-  standardAxleLoads: {
-    single: { kg: 8164, kN: 80, kips: 18 },
-    tandem: { kg: 13766.17, kN: 135, kips: 30 },
-    tridem: { kg: 18558.84, kN: 182, kips: 41 },
-    quad: { kg: 23351.50, kN: 229, kips: 52 }
-  },
-  loadEquivalencyExponent: 4.5,
-  unit: 'kg' as const
-};
 
-console.log('Testing corrected formula:\n');
-console.log('Test 1: 50000 kg Tandem on 7" rigid pavement');
-const result1 = calculateAASHTOEALF(50000, 'Tandem', 'rigid', testConfig);
-console.log(`Result: ${result1.toFixed(4)} ESALs\n`);
-
-console.log('Test 2: Standard 14515 kg (32 kip) Tandem on 7" rigid pavement');
-const result2 = calculateAASHTOEALF(14515, 'Tandem', 'rigid', testConfig);
-console.log(`Result: ${result2.toFixed(4)} ESALs\n`);
-
-console.log('Test 3: Standard 8165 kg (18 kip) Single on 7" rigid pavement');
-const result3 = calculateAASHTOEALF(8165, 'Single', 'rigid', testConfig);
-console.log(`Result: ${result3.toFixed(4)} ESALs (should be close to 1.0)\n`);
-
-export const processConfiguration = (config: number[], axles: number[], method: 'simplified' | 'AASHTO'): number[] => {
+export const processConfiguration = (config: number[], axles: number[]): number[] => {
   const combinedAxles: number[] = [];
   let idx = 0;
 
